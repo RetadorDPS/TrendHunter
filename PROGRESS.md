@@ -715,6 +715,49 @@ seed) no ve el diálogo. `npm run audit:ui` sigue en 0 errores (las cuentas
 que usa ya están onboardeadas, así que no interfiere con la navegación
 automática).
 
+## Mejora 10 · Informes compartibles para clientes (✅)
+
+El modo agencia (clientes propios) ya existía, pero compartir un informe con
+un cliente obligaba a mandarle el PDF por correo o enseñarle la pantalla por
+videollamada. Ahora hay un enlace público de solo lectura.
+
+### Qué se ha construido
+- **Modelo `InformeCompartido`**: `tipo` (PRODUCTO/TIENDA), `entidadId`,
+  `clienteId` opcional, `token` único, `expiraEn`, `revocadoEn`, `vistas` y
+  `ultimaVistaEn`. Borrado en cascada si se borra el usuario; el cliente
+  queda `null` si se borra (el enlace sigue sirviendo, solo pierde la
+  etiqueta).
+- **`POST/DELETE /api/productos/:id/informe/compartir` y el mismo para
+  `/api/tiendas/:id/`**: solo Agency (el plan que vende clientes propios).
+  Crear reutiliza el enlace activo si ya existe (no acumula tokens sueltos);
+  revocar lo invalida al momento.
+- **`/informe/:token`** (página pública, sin sesión, fuera de `/dashboard`):
+  - Producto: imagen, score, sello de confianza **real** (reutiliza
+    `SelloConfianza` y `ProcedenciaPanel`, los mismos componentes del panel:
+    si el producto es «Estimado», el informe dice «Estimado», nunca
+    «Verificado» de más), gráfica de 30 días.
+  - Tienda: facturación, tráfico, top productos y apps detectadas. Sin sello
+    de confianza (las tiendas no lo tienen: no se inventa uno).
+  - Caducado, revocado o con un token que no existe: mismo mensaje honesto,
+    nunca un error ni datos a medias.
+  - Límite de 60 vistas/10 min **por IP** (no por token): protege contra
+    adivinar tokens al azar sin molestar a quien de verdad lo comparte.
+- **Botón «Compartir»** junto al de «Informe PDF» en la ficha de producto y
+  de tienda: crea el enlace, lo copia y lo revoca sin salir de la pantalla.
+
+### Compatibilidad con el sitio estático
+`/informe/:token` depende de base de datos en vivo (caducidad, revocación,
+contador de vistas): no se puede pre-renderizar. `npm run build:pages` lo
+retira igual que retira `src/app/api/` (ver `scripts/build-pages.mjs`); el
+resto del sitio estático sigue exportando igual.
+
+### Verificación
+`npm run verify:informes-compartidos` (nuevo, 10/10): un plan que no es
+Agency no puede compartir (402), el enlace se abre sin sesión y muestra el
+producto real con su sello de confianza real, un token inexistente nunca da
+datos, revocar y caducar lo dejan inservible con su motivo, y el informe de
+tienda funciona sin inventar un sello que no existe.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

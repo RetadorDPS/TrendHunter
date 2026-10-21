@@ -58,6 +58,7 @@ export const ENUMS = {
   TeamRole: ["OWNER", "ADMIN", "MEMBER"],
   TeamMemberStatus: ["INVITED", "ACTIVE", "REVOKED"],
   WebhookProvider: ["SLACK", "DISCORD", "GENERIC"],
+  ReporteTipo: ["PRODUCTO", "TIENDA"],
 };
 
 /**
@@ -618,6 +619,25 @@ export const TABLES = [
       { name: "createdAt", type: "datetime", default: now },
     ],
     indexes: [["webhookId", "createdAt"]],
+  },
+
+  // ------------------------------------- módulo 12 · informes compartibles
+  {
+    name: "InformeCompartido",
+    columns: [
+      { name: "id", type: "text", pk: true },
+      { name: "userId", type: "text", references: { table: "User", onDelete: "Cascade" } },
+      { name: "tipo", type: "enum:ReporteTipo" },
+      { name: "entidadId", type: "text" },
+      { name: "clienteId", type: "text", nullable: true, references: { table: "Cliente", onDelete: "SetNull" } },
+      { name: "token", type: "text", unique: true },
+      { name: "creadoEn", type: "datetime", default: now },
+      { name: "expiraEn", type: "datetime" },
+      { name: "revocadoEn", type: "datetime", nullable: true },
+      { name: "vistas", type: "int", default: { value: 0 } },
+      { name: "ultimaVistaEn", type: "datetime", nullable: true },
+    ],
+    indexes: [["userId"], ["tipo", "entidadId"]],
   },
 ];
 

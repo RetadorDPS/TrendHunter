@@ -47,6 +47,7 @@ las creatividades de tu campaña con IA.
 | 16 | Webhooks salientes | `/dashboard/settings/notifications` | Avisos a Slack, Discord o cualquier automatización (n8n, Make, Zapier), con firma HMAC, prueba de entrega e historial de las últimas 50 entregas (código, latencia, motivo del fallo) |
 | 13 | PWA y avisos push | `/manifest.webmanifest`, `/dashboard/settings/notifications` | Instalable en Android, iPhone y escritorio; service worker con caché de estáticos y pantalla sin conexión; alertas al móvil con VAPID por `web-push` |
 | 17 | Onboarding | `/dashboard` (diálogo, sin ruta propia) | 3 pasos saltables en el primer acceso: elegir nicho, seguir hasta 3 tiendas (respetando el límite real del plan) y activar avisos con el panel de push real |
+| 18 | Informes compartibles | `/informe/:token` | Enlace público de solo lectura (plan Agency) a un producto o tienda, con el sello de confianza real, caducidad, revocación y contador de vistas; nunca expone datos de otra cuenta |
 
 ---
 
@@ -307,8 +308,10 @@ Para publicarlo hace falta, una sola vez:
 Qué funciona en la versión estática: todas las pantallas (landing, precios,
 panel completo con datos reales, catálogo con filtros por URL, fichas de
 producto y de tienda, administración) y los gráficos. Qué necesita servidor: la
-IA, el guardado de favoritos, los trackers, el Shop Analyzer, los pagos y el
-alta de cuentas. Un aviso en la cabecera lo explica y las llamadas al backend
+IA, el guardado de favoritos, los trackers, el Shop Analyzer, los pagos, el
+alta de cuentas y los informes compartidos (`/informe/:token` no se exporta:
+necesita base de datos en vivo para la caducidad, la revocación y el contador
+de vistas). Un aviso en la cabecera lo explica y las llamadas al backend
 responden con un mensaje claro en lugar de fallar en silencio.
 
 ### Railway (recomendado)

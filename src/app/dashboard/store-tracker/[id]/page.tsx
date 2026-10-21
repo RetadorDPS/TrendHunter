@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Boxes, Cog, Globe, Layers3, TrendingUp, Users } from "lucide-react";
+import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { getStoreDetail } from "@/lib/dal";
 import { PageHeading } from "@/components/domain/page-heading";
@@ -9,6 +10,7 @@ import { StatCard } from "@/components/domain/stat-card";
 import { StoreTimeline } from "@/components/domain/store-timeline";
 import { TrackStoreButton } from "@/components/domain/track-store-button";
 import { BotonInformePdf } from "@/components/domain/boton-informe-pdf";
+import { BotonCompartirInforme } from "@/components/domain/boton-compartir-informe";
 import { PrecioHistoricoChart } from "@/components/charts/precio-historico-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,9 +27,10 @@ interface PageProps {
 /** Historial completo de una tienda monitorizada. */
 export default async function StoreDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const [detalle, seguimiento] = await Promise.all([
+  const [detalle, seguimiento, sesion] = await Promise.all([
     getStoreDetail(id),
     prisma.trackedStore.findFirst({ where: { storeId: id } }),
+    auth(),
   ]);
 
   if (!detalle) notFound();
@@ -78,6 +81,7 @@ export default async function StoreDetailPage({ params }: PageProps) {
           <div className="flex flex-wrap items-center gap-2">
             <TrackStoreButton storeId={store.id} companyName={store.name} tracked={Boolean(seguimiento)} />
             <BotonInformePdf origen="tienda" id={store.id} />
+            <BotonCompartirInforme origen="tienda" id={store.id} plan={sesion?.user?.planType ?? "FREE"} />
           </div>
         }
       />

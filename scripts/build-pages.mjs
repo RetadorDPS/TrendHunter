@@ -101,6 +101,10 @@ export default nextConfig;
 console.log("[build:pages] 3/6 · Retirando lo que necesita servidor…");
 rmSync(path.join(TRABAJO, "src", "app", "api"), { recursive: true, force: true });
 rmSync(path.join(TRABAJO, "src", "proxy.ts"), { force: true });
+// Los informes compartidos son tokens creados después del despliegue y de
+// solo lectura en vivo (caducidad, revocación, contador de vistas real): no
+// hay nada que pre-renderizar ni servidor que los resuelva en GitHub Pages.
+rmSync(path.join(TRABAJO, "src", "app", "informe"), { recursive: true, force: true });
 
 writeFileSync(
   path.join(TRABAJO, "src", "auth.ts"),

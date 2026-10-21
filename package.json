@@ -43,6 +43,7 @@
     "verify:stripe-webhook": "tsx scripts/verificar-stripe-webhook.mts",
     "verify:webhooks-historial": "tsx scripts/verificar-webhooks-historial.mts",
     "verify:onboarding": "tsx scripts/verificar-onboarding.mts",
+    "verify:informes-compartidos": "tsx scripts/verificar-informes-compartidos.mts",
     "worker": "tsx scripts/worker.ts"
   },
   "prisma": {

@@ -189,6 +189,11 @@ enum WebhookProvider {
   GENERIC
 }
 
+enum ReporteTipo {
+  PRODUCTO
+  TIENDA
+}
+
 enum UsageAction {
   PRODUCT_VIEW
   AI_GENERATION
@@ -248,6 +253,7 @@ model User {
   /// Plazas que ocupa (una por equipo).
   teamMemberships TeamMember[]
   webhooks        Webhook[]
+  informesCompartidos InformeCompartido[]
 
   @@index([planType])
 }
@@ -727,6 +733,7 @@ model Cliente {
 
   followedStores TrackedStore[]
   followedProducts TrackedProduct[]
+  informesCompartidos InformeCompartido[]
 
   @@index([ownerId])
 }
@@ -916,4 +923,34 @@ model WebhookEntrega {
   webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
   @@index([webhookId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+//  MÓDULO 12 · Informes compartibles (modo agencia)
+// ---------------------------------------------------------------------------
+
+/// Enlace público de solo lectura a un informe (producto o tienda). Solo
+/// Agency puede crearlos. Caduca, se puede revocar y nunca expone datos de
+/// otra cuenta: la ruta pública solo lee lo que este registro apunta.
+model InformeCompartido {
+  id        String      @id @default(cuid())
+  userId    String
+  tipo      ReporteTipo
+  /// Id del producto o de la tienda, según `tipo`.
+  entidadId String
+  /// Cliente del modo agencia al que se le comparte (opcional).
+  clienteId String?
+  /// Token largo de un solo enlace; va en la URL pública /informe/:token.
+  token     String      @unique
+  creadoEn    DateTime  @default(now())
+  expiraEn    DateTime
+  revocadoEn  DateTime?
+  vistas        Int      @default(0)
+  ultimaVistaEn DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cliente Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tipo, entidadId])
 }

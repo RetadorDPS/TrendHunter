@@ -25,6 +25,7 @@ import { ProfitCalculator } from "@/components/domain/profit-calculator";
 import { SaveProductButton } from "@/components/domain/save-product-button";
 import { TrackProductButton } from "@/components/domain/track-product-button";
 import { BotonInformePdf } from "@/components/domain/boton-informe-pdf";
+import { BotonCompartirInforme } from "@/components/domain/boton-compartir-informe";
 import { ImportadorTendencias } from "@/components/domain/importador-tendencias";
 import { ProductTrendChart } from "@/components/charts/trend-area-chart";
 import { TrendScoreRing, TrendScoreBar } from "@/components/domain/trend-score-ring";
@@ -100,6 +101,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <SaveProductButton productId={product.id} saved={yaGuardado} />
             <TrackProductButton productId={product.id} tracked={false} />
             <BotonInformePdf origen="producto" id={product.id} />
+            <BotonCompartirInforme origen="producto" id={product.id} plan={sesion?.user?.planType ?? "FREE"} />
           </>
         }
       />
