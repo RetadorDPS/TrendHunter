@@ -40,6 +40,7 @@
     "verify:ingesta": "tsx scripts/verificar-ingesta.mts",
     "verify:pages": "node scripts/verify-pages.mjs",
     "verify:pwa": "node scripts/verificar-pwa.mjs",
+    "verify:stripe-webhook": "tsx scripts/verificar-stripe-webhook.mts",
     "worker": "tsx scripts/worker.ts"
   },
   "prisma": {

@@ -123,6 +123,7 @@ Genera un secreto de producción con `openssl rand -base64 32`.
 | `npm run verify:api-v1` | 23 comprobaciones de la API pública (claves, cuotas, revocación) |
 | `npm run audit:ui` | Recorre la navegación real de dos cuentas: enlaces, errores de consola y tiempos |
 | `npm run verify:pwa` | 18 comprobaciones de la PWA (manifiesto, iconos, service worker, push y sin conexión) |
+| `npm run verify:stripe-webhook` | 9 comprobaciones del webhook de Stripe: firma, activación de plan e **idempotencia real** (repetir el mismo evento no duplica nada), sin necesitar una cuenta de Stripe |
 | `npm run verify:confianza` | 15 comprobaciones del sello de confianza (catálogo, ficha, API y caso verificado) |
 | `npm run verify:ingesta` | 45 comprobaciones de la ingesta real (catálogo, cambios, cruce, tendencias y caducidad del sello) |
 | `npm run captura:fuentes` | Capturas de la sección «Fuentes en vivo» |

@@ -616,6 +616,33 @@ lo dice, pero no se cobra). Con Stripe conectado y esas claves, el mismo
 código sincroniza la suscripción real la primera vez que el propietario
 confirma un cambio.
 
+## Mejora 7 · Stripe en vivo: verificado sin necesitar la cuenta (✅ código, ⏳ credencial)
+
+El checkout real, el portal y el webhook ya estaban escritos (`src/lib/stripe.ts`,
+`src/app/api/stripe/**`), pero nadie había probado de verdad la garantía que
+más importa: que repetir el mismo evento de Stripe **no duplica nada**. Sin
+cuenta de Stripe no se puede disparar un evento real, así que se construyó la
+prueba que sí se puede hacer en este entorno: firmar un evento con el mismo
+esquema que usa Stripe (`t=…,v1=…`, HMAC-SHA256) y llamar al handler real del
+webhook directamente (sin red, sin mock del código de producción).
+
+### Qué demuestra `npm run verify:stripe-webhook` (9/9)
+- Firma inválida o ausente → 400 (nunca procesa un evento sin verificar).
+- `checkout.session.completed` activa el plan comprado de verdad.
+- Repetir el MISMO `id` de evento devuelve `duplicado:true` sin volver a
+  tocar el plan ni crear un segundo aviso — la tabla `StripeEvent` se queda
+  en una sola fila para ese id.
+- `customer.subscription.deleted` vuelve el plan a FREE.
+
+### Lo que falta por credencial
+`STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO/BUSINESS/AGENCY` y
+`STRIPE_WEBHOOK_SECRET` de una cuenta de Stripe real (modo test primero). Hoy
+sin ellas la interfaz lo dice explícitamente («Stripe en modo demostración»
+en `/dashboard/settings/billing`) y el checkout activa el plan en modo
+demostración en vez de simular un cobro. En cuanto se configuren las claves,
+el mismo código (ya verificado) cobra de verdad con la tarjeta de prueba
+4242 4242 4242 4242, sin cambiar una línea.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con
