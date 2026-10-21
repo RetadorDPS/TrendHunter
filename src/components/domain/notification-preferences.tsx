@@ -222,7 +222,12 @@ export function NotificationPreferences({ tiendas, productos, notificaciones }: 
                       <Badge className={cn("border", COLORES[aviso.type])}>
                         {NOTIFICATION_TYPE_LABELS[aviso.type]}
                       </Badge>
-                      {!aviso.read && <span className="size-2 rounded-full bg-indigo-400" aria-label="Sin leer" />}
+                      {!aviso.read && (
+                        <>
+                          <span className="size-2 rounded-full bg-indigo-400" aria-hidden="true" />
+                          <span className="sr-only">Sin leer</span>
+                        </>
+                      )}
                       <span className="text-[11px] text-muted-foreground"><RelativeTime value={aviso.createdAt} /></span>
                     </div>
                     <p className="mt-1.5 text-sm font-medium text-slate-100">{aviso.title}</p>

@@ -349,7 +349,7 @@ export default async function FuentesPage() {
           </p>
           <p>
             · <strong>Términos del día:</strong>{" "}
-            <Link href="https://trends.google.com/trending?geo=ES" target="_blank" className="text-indigo-300 hover:underline">
+            <Link href="https://trends.google.com/trending?geo=ES" target="_blank" className="text-indigo-300 underline underline-offset-2">
               trends.google.com/trending?geo=ES
             </Link>
             . Los títulos coinciden con los guardados.

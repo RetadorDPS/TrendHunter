@@ -98,7 +98,7 @@ export function ForgotPasswordForm() {
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        <Link href="/login" className="text-indigo-400 hover:text-indigo-300">
+        <Link href="/login" className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300">
           Volver al inicio de sesión
         </Link>
       </p>

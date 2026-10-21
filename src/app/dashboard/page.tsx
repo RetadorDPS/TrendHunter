@@ -285,7 +285,7 @@ export default async function DashboardPage() {
                   <span className="text-2xl font-bold text-indigo-300">{stats.scoreMedio}</span>
                   <span className="text-xs text-muted-foreground">/ 100 · margen medio {stats.margenMedio} %</span>
                 </p>
-                <Progress value={stats.scoreMedio} className="mt-2" />
+                <Progress value={stats.scoreMedio} className="mt-2" aria-label={`Score medio del catálogo: ${stats.scoreMedio} de 100`} />
               </div>
             </CardContent>
           </Card>

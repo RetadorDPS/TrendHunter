@@ -135,6 +135,7 @@ Genera un secreto de producción con `openssl rand -base64 32`.
 | `npm run verify:onboarding` | 12 comprobaciones del onboarding de 3 pasos (aparece, nicho, límite real del plan al seguir tiendas, saltar, no repetirse) |
 | `npm run verify:informes-compartidos` | 10 comprobaciones del enlace público de informes (plan Agency, sello de confianza real, caducidad, revocación) |
 | `npm run verify:buscador` | 9 comprobaciones del buscador global (productos/tiendas/anuncios/páginas reales, respeta el plan, teclado) |
+| `npm run verify:accesibilidad` | Auditoría con axe-core (WCAG2A/AA) en 18 pantallas públicas y del panel: 0 violaciones graves |
 | `npm run chromium` | Prepara el Chromium local que usan las capturas y las verificaciones |
 | `npm run build:pages` | Exporta el sitio estático para GitHub Pages a `docs/` |
 | `npm run preview:pages` | Sirve `docs/` igual que GitHub Pages (`http://localhost:4000/TrendHunter/`) |

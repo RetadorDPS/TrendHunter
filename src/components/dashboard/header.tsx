@@ -109,10 +109,18 @@ export function Header({ user, notifications, unreadCount, onOpenMenu }: HeaderP
         {/* Notificaciones */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="relative" aria-label="Notificaciones">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="relative"
+              aria-label={noLeidas > 0 ? `Notificaciones, ${noLeidas} sin leer` : "Notificaciones"}
+            >
               <Bell />
               {noLeidas > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
+                <span
+                  className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white"
+                  aria-hidden="true"
+                >
                   {noLeidas > 9 ? "9+" : noLeidas}
                 </span>
               )}

@@ -15,7 +15,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold tracking-tight">Inicia sesión</h1>
         <p className="text-sm text-muted-foreground">
           ¿Aún no tienes cuenta?{" "}
-          <Link href="/register" className="font-medium text-indigo-400 hover:text-indigo-300">
+          <Link href="/register" className="font-medium text-indigo-400 underline underline-offset-2 hover:text-indigo-300">
             Crea una gratis
           </Link>
         </p>

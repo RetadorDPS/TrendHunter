@@ -368,7 +368,11 @@ export function EquipoPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Progress value={uso} className="h-2" />
+          <Progress
+            value={uso}
+            className="h-2"
+            aria-label={`Plazas ocupadas: ${equipo.ocupados} de ${equipo.asientos}`}
+          />
           {puedeGestionar && equipo.precioAsientoExtra !== null && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-3 text-xs">
               <Label htmlFor="asientos-extra" className="shrink-0 text-muted-foreground">

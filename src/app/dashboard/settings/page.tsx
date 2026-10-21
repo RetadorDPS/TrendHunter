@@ -207,7 +207,7 @@ function UsoBarra({
           {usado} / {limite === null ? "ilimitado" : limite}
         </span>
       </div>
-      <Progress value={porcentaje} className="h-1.5" />
+      <Progress value={porcentaje} className="h-1.5" aria-label={`${etiqueta}: ${usado} de ${limite === null ? "ilimitado" : limite}`} />
     </div>
   );
 }

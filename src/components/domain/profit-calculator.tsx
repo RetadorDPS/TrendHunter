@@ -101,7 +101,14 @@ export function ProfitCalculator({ costPrice, sellPrice, className }: ProfitCalc
             <Label>CPA (coste publicitario por venta)</Label>
             <span className="text-xs font-semibold text-amber-300 tabular-nums">{formatCurrencyPrecise(calculo.cpaValor)}</span>
           </div>
-          <Slider value={cpa} min={0} max={Math.max(40, Math.round(precio * 0.9))} step={0.5} onValueChange={setCpa} />
+          <Slider
+            value={cpa}
+            min={0}
+            max={Math.max(40, Math.round(precio * 0.9))}
+            step={0.5}
+            onValueChange={setCpa}
+            aria-label="CPA (coste publicitario por venta)"
+          />
         </div>
 
         {/* Volumen */}
@@ -110,7 +117,7 @@ export function ProfitCalculator({ costPrice, sellPrice, className }: ProfitCalc
             <Label>Ventas por día</Label>
             <span className="text-xs font-semibold text-indigo-300 tabular-nums">{unidadesDia[0]} / día</span>
           </div>
-          <Slider value={unidadesDia} min={1} max={120} step={1} onValueChange={setUnidadesDia} />
+          <Slider value={unidadesDia} min={1} max={120} step={1} onValueChange={setUnidadesDia} aria-label="Ventas por día" />
         </div>
 
         {/* Devoluciones */}
@@ -119,7 +126,14 @@ export function ProfitCalculator({ costPrice, sellPrice, className }: ProfitCalc
             <Label>Tasa de devoluciones</Label>
             <span className="text-xs font-semibold text-rose-300 tabular-nums">{tasaDevolucion[0]} %</span>
           </div>
-          <Slider value={tasaDevolucion} min={0} max={20} step={1} onValueChange={setTasaDevolucion} />
+          <Slider
+            value={tasaDevolucion}
+            min={0}
+            max={20}
+            step={1}
+            onValueChange={setTasaDevolucion}
+            aria-label="Tasa de devoluciones"
+          />
         </div>
 
         {/* Resultado */}

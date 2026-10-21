@@ -209,7 +209,7 @@ export function PricingPlans({ planActual, autenticado }: PricingPlansProps) {
       {!autenticado && (
         <p className="text-center text-sm text-muted-foreground">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="text-indigo-400 hover:underline">
+          <Link href="/login" className="text-indigo-400 underline underline-offset-2">
             Inicia sesión
           </Link>
         </p>

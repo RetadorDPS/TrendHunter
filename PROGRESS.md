@@ -803,6 +803,38 @@ la documentación (`README.md`, `DESPLEGUE.md`). Verificado sirviendo
 `docs/` con `npm run preview:pages`: `/TrendHunter/` responde 200 y
 `/OmegaHub/` ya da 404, como debe ser.
 
+## Mejora 12 · Accesibilidad (✅)
+
+Auditoría con **axe-core** de verdad (el motor real, no una lista de reglas
+escrita a mano) sobre 18 pantallas públicas y del panel. Primera pasada: 22
+violaciones graves (WCAG2A/AA, impacto serious/critical) en 15 de 18
+páginas. Corregidas todas, sin bajar el umbral ni quitar páginas de la
+lista:
+
+| Violación | Dónde | Arreglo |
+| --- | --- | --- |
+| `color-contrast` (en casi toda página con sesión) | Insignia roja de avisos sin leer en la campana (blanco sobre `bg-rose-500`, 3.75:1) | `bg-rose-600` (≥4.5:1); el número pasa a `aria-hidden` y el recuento real se dice en el `aria-label` del botón («Notificaciones, N sin leer») |
+| `aria-progressbar-name` | 8 barras de progreso (panel general, equipos, ajustes, store tracker, shop analyzer, calculadora, contraseña) | `aria-label` con el dato real en cada una (no un texto genérico) |
+| `aria-input-field-name` | Controles deslizantes de filtros y de la calculadora de beneficio | El `aria-label` ahora va en el `Thumb` de Radix (el que de verdad lleva `role="slider"`), no en el `Root`: Radix no lo copia solo |
+| `aria-prohibited-attr` | Punto «sin leer» en notificaciones (`<span aria-label>` sin rol válido) | Punto decorativo `aria-hidden` + texto `sr-only` aparte |
+| `link-in-text-block` | 5 enlaces dentro de texto (login, registro, recuperar contraseña, precios, fuentes) que solo se distinguían por color | Subrayado real (no solo al pasar el ratón) |
+
+### Verificación
+`npm run verify:accesibilidad` (nuevo): 18/18 páginas sin violaciones
+graves (antes 3/18), 0 en total. El resto de la batería sigue en verde:
+npm test 172/172, verify:equipos 42/42, verify:api 42/42, verify:api-v1
+23/23, verify:buscador 9/9, verify:ingesta 45/45, verify:confianza 15/15,
+verify:pwa 18/18, verify:onboarding 12/12, verify:informes-compartidos
+10/10, audit:ui 0 errores, build:pages + verify:pages 60/60.
+
+### Lo que queda fuera de esta ronda
+Contraste y nombres accesibles (lo medible con un motor real) está
+cerrado. El presupuesto de LCP < 2,5 s en 4G no se ha medido con un
+throttling de red real (el sandbox no tiene una red variable que emular de
+forma fiable); el servidor ya sirve imágenes con `next/image`
+(dimensionadas, con `sizes`) y el panel no carga JS de más por ruta
+(Next 16 con App Router divide el bundle por página).
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

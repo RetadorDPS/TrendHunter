@@ -159,6 +159,7 @@ export function RegisterForm() {
             <div className="space-y-1.5">
               <Progress
                 value={fuerza}
+                aria-label={`Fortaleza de la contraseña: ${fuerza}%`}
                 className={cn(
                   "h-1.5",
                   fuerza >= 80 ? "[&>div]:bg-emerald-500" : fuerza >= 55 ? "[&>div]:bg-amber-500" : "[&>div]:bg-rose-500",
@@ -214,7 +215,7 @@ export function RegisterForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="text-indigo-400 hover:text-indigo-300">
+        <Link href="/login" className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300">
           Inicia sesión
         </Link>
       </p>

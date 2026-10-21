@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const Slider = React.forwardRef<
   React.ComponentRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => {
+>(({ className, "aria-label": ariaLabel, ...props }, ref) => {
   const cantidad = props.value?.length ?? props.defaultValue?.length ?? 1;
   return (
     <SliderPrimitive.Root
@@ -22,6 +22,9 @@ const Slider = React.forwardRef<
       {Array.from({ length: cantidad }, (_, indice) => (
         <SliderPrimitive.Thumb
           key={indice}
+          // El aria-label va en cada Thumb (el que de verdad lleva role="slider"),
+          // no en el Root: Radix no lo copia solo.
+          aria-label={cantidad > 1 && ariaLabel ? `${ariaLabel} (${indice === 0 ? "mínimo" : "máximo"})` : ariaLabel}
           className="block size-4 rounded-full border-2 border-indigo-500 bg-slate-950 shadow transition-transform hover:scale-110 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
         />
       ))}

@@ -184,7 +184,10 @@ export function ShopAnalyzerClient({
           {/* Progreso del análisis */}
           {analizando && (
             <div className="space-y-3 rounded-xl border border-indigo-500/25 bg-indigo-500/5 p-4">
-              <Progress value={((pasoActual + 1) / PASOS.length) * 100} />
+              <Progress
+                value={((pasoActual + 1) / PASOS.length) * 100}
+                aria-label={`Progreso del análisis: paso ${pasoActual + 1} de ${PASOS.length}`}
+              />
               <ul className="space-y-1.5 text-sm">
                 {PASOS.map((paso, indice) => {
                   const completado = indice < pasoActual;
@@ -381,7 +384,11 @@ export function ShopAnalyzerClient({
                         <span className="text-slate-100">{categoria.name}</span>
                         <span className="tabular-nums text-muted-foreground">{categoria.share} %</span>
                       </div>
-                      <Progress value={categoria.share} className="h-1.5" />
+                      <Progress
+                        value={categoria.share}
+                        className="h-1.5"
+                        aria-label={`${categoria.name}: ${categoria.share}% del catálogo`}
+                      />
                     </div>
                   ))}
                 </CardContent>

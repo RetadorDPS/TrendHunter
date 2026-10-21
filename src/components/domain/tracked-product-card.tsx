@@ -212,7 +212,11 @@ export function TrackedProductCard({ item, index = 0, className }: TrackedProduc
                   {distanciaObjetivo === 0 ? "¡Objetivo alcanzado!" : `faltan ${distanciaObjetivo} pts`}
                 </span>
               </div>
-              <Progress value={progresoObjetivo} className="h-1" />
+              <Progress
+                value={progresoObjetivo}
+                className="h-1"
+                aria-label={`Progreso hacia el umbral de alerta: ${Math.round(progresoObjetivo)}%`}
+              />
             </div>
 
             <div className="flex flex-wrap gap-2">

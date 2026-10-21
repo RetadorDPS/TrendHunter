@@ -180,7 +180,11 @@ export default async function StoreDetailPage({ params }: PageProps) {
                       <span className="text-slate-100">{categoria}</span>
                       <span className="tabular-nums text-muted-foreground">{Math.round(peso)} %</span>
                     </div>
-                    <Progress value={Number(peso.toFixed(1))} className="h-1.5" />
+                    <Progress
+                      value={Number(peso.toFixed(1))}
+                      className="h-1.5"
+                      aria-label={`${categoria}: ${Math.round(peso)}% del catálogo`}
+                    />
                   </div>
                 );
               })}
