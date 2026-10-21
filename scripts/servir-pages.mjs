@@ -1,9 +1,9 @@
 /**
  * Sirve localmente el sitio estático de `docs/` tal y como lo hará GitHub Pages:
- * bajo el prefijo `/OmegaHub/` y resolviendo rutas con barra final
+ * bajo el prefijo `/TrendHunter/` y resolviendo rutas con barra final
  * (`/dashboard/` → `docs/dashboard/index.html`).
  *
- *     npm run preview:pages          → http://localhost:4000/OmegaHub/
+ *     npm run preview:pages          → http://localhost:4000/TrendHunter/
  *
  * Sirve para comprobar la exportación antes de publicarla.
  */
@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 
 const PUERTO = Number(process.env.PUERTO ?? 4000);
-const PREFIJO = process.env.BASE_PATH ?? "/OmegaHub";
+const PREFIJO = process.env.BASE_PATH ?? "/TrendHunter";
 const RAIZ = path.join(process.cwd(), "docs");
 const TIPOS = {
   ".html": "text/html; charset=utf-8",

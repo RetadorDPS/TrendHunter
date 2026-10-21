@@ -137,7 +137,7 @@ Genera un secreto de producción con `openssl rand -base64 32`.
 | `npm run verify:buscador` | 9 comprobaciones del buscador global (productos/tiendas/anuncios/páginas reales, respeta el plan, teclado) |
 | `npm run chromium` | Prepara el Chromium local que usan las capturas y las verificaciones |
 | `npm run build:pages` | Exporta el sitio estático para GitHub Pages a `docs/` |
-| `npm run preview:pages` | Sirve `docs/` igual que GitHub Pages (`http://localhost:4000/OmegaHub/`) |
+| `npm run preview:pages` | Sirve `docs/` igual que GitHub Pages (`http://localhost:4000/TrendHunter/`) |
 | `npm run verify:pages` | 60 comprobaciones del sitio estático en `docs/` (usuario + administrador, HTTP y consola) |
 
 ---
@@ -296,8 +296,8 @@ demostración) sin backend.
 
 ```bash
 npm run setup          # datos de demostración (20 productos, tiendas, anuncios)
-npm run build:pages    # exporta el sitio a docs/ (base path /OmegaHub)
-npm run preview:pages  # comprueba el resultado en http://localhost:4000/OmegaHub/
+npm run build:pages    # exporta el sitio a docs/ (base path /TrendHunter)
+npm run preview:pages  # comprueba el resultado en http://localhost:4000/TrendHunter/
 ```
 
 Para publicarlo hace falta, una sola vez:

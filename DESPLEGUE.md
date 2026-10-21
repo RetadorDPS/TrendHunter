@@ -39,7 +39,7 @@
    ```bash
    sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
    sudo usermod -aG docker $USER   # y reconecta la sesión
-   git clone <tu-repo> OmegaHub && cd OmegaHub
+   git clone <tu-repo> TrendHunter && cd TrendHunter
    cp .env.example .env
    ```
    > La imagen se compila **para PostgreSQL** (`--build-arg
@@ -118,7 +118,7 @@ Los flujos ya existen y se activan solos al subir el repo:
    activa HTTPS con Caddy (incluido en `docker-compose.yml`)
    o Cloudflare (proxy gratuito).
 2. El sitio estático ya vive en GitHub Pages
-   (`https://retadordps.github.io/OmegaHub/`): en *Settings →
+   (`https://retadordps.github.io/TrendHunter/`): en *Settings →
    Pages* elige rama `main` y carpeta `/docs`.
 
 ## 7 · Stripe (modo test → live)

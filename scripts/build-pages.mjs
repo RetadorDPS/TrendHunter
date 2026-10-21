@@ -29,7 +29,7 @@ const TRABAJO = path.join(RAIZ, ".pages");
 const SALIDA = path.join(TRABAJO, "out");
 const DESTINO = path.join(RAIZ, "docs");
 /** Ruta pública en GitHub Pages: https://<usuario>.github.io/<repositorio>/. */
-const BASE_PATH = "/OmegaHub";
+const BASE_PATH = "/TrendHunter";
 
 const COPIAR = ["src", "public", "prisma", "package.json", "tsconfig.json", "postcss.config.mjs", "prisma.config.ts"];
 
@@ -76,7 +76,7 @@ writeFileSync(
 const nextConfig: NextConfig = {
   output: "export",
   basePath: ${JSON.stringify(BASE_PATH)},
-  // El manifiesto y el service worker se publican bajo /OmegaHub/.
+  // El manifiesto y el service worker se publican bajo /TrendHunter/.
   env: { NEXT_PUBLIC_BASE_PATH: ${JSON.stringify(BASE_PATH)} },
   trailingSlash: true,
   reactStrictMode: true,
@@ -276,7 +276,7 @@ for (const relativa of componentesConParametros) {
 }
 
 // --- Aviso, sesión estática e intercepto de peticiones al backend ----------
-const URL_APP = process.env.URL_APP_COMPLETA ?? "https://github.com/RetadorDPS/OmegaHub";
+const URL_APP = process.env.URL_APP_COMPLETA ?? "https://github.com/RetadorDPS/TrendHunter";
 
 /** Código que avisa cuando una acción necesita el backend real. */
 const CODIGO_INTERCEPTOR = [

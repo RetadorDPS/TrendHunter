@@ -789,6 +789,20 @@ un término sin coincidencias no inventa nada, un plan sin equipo no ve
 navega a ESE resultado (no siempre a Winning Products) y Enter sin resaltar
 cae en el catálogo filtrado.
 
+## Corrección · ruta base del sitio estático (`/OmegaHub` → `/TrendHunter`)
+
+El proyecto se trasladó de `RetadorDPS/OmegaHub` a `RetadorDPS/TrendHunter`
+(ver el primer commit de esta rama), pero `npm run build:pages` seguía
+publicando bajo `/OmegaHub/`: el sitio de GitHub Pages habría quedado en una
+ruta que ya no corresponde al repositorio real
+(`https://retadordps.github.io/TrendHunter/`, no `.../OmegaHub/`).
+
+Corregido en `scripts/build-pages.mjs` (`BASE_PATH`, enlace de «abrir la
+app completa»), `scripts/servir-pages.mjs` (prefijo de la vista previa) y
+la documentación (`README.md`, `DESPLEGUE.md`). Verificado sirviendo
+`docs/` con `npm run preview:pages`: `/TrendHunter/` responde 200 y
+`/OmegaHub/` ya da 404, como debe ser.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con
