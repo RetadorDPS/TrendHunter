@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   Bell,
@@ -11,13 +10,12 @@ import {
   Globe,
   LogOut,
   Menu,
-  Search,
   Settings,
   User as UserIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { BuscadorGlobal } from "@/components/dashboard/buscador-global";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -53,20 +51,10 @@ interface HeaderProps {
 
 /** Cabecera del dashboard: buscador, idioma, notificaciones y perfil. */
 export function Header({ user, notifications, unreadCount, onOpenMenu }: HeaderProps) {
-  const router = useRouter();
-  const [busqueda, setBusqueda] = useState("");
   const [idioma, setIdioma] = useState("es");
   const [leidas, setLeidas] = useState<string[]>([]);
 
   const noLeidas = Math.max(0, unreadCount - leidas.length);
-
-  /** Busca productos y anuncios con el término introducido. */
-  function buscar(evento: React.FormEvent) {
-    evento.preventDefault();
-    const termino = busqueda.trim();
-    if (!termino) return;
-    router.push(`/dashboard/winning-products?search=${encodeURIComponent(termino)}`);
-  }
 
   /** Marca una notificación como leída (optimista en cliente + API). */
   async function marcarLeida(id: string) {
@@ -96,16 +84,7 @@ export function Header({ user, notifications, unreadCount, onOpenMenu }: HeaderP
       </Button>
 
       {/* Buscador global */}
-      <form onSubmit={buscar} className="relative hidden max-w-md flex-1 sm:block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={busqueda}
-          onChange={(evento) => setBusqueda(evento.target.value)}
-          placeholder="Buscar productos, nichos o anuncios…"
-          className="pl-9"
-          aria-label="Buscador global"
-        />
-      </form>
+      <BuscadorGlobal />
 
       <div className="ml-auto flex items-center gap-1.5">
         {/* Selector de idioma */}

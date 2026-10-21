@@ -44,6 +44,7 @@
     "verify:webhooks-historial": "tsx scripts/verificar-webhooks-historial.mts",
     "verify:onboarding": "tsx scripts/verificar-onboarding.mts",
     "verify:informes-compartidos": "tsx scripts/verificar-informes-compartidos.mts",
+    "verify:buscador": "node scripts/verificar-buscador.mjs",
     "worker": "tsx scripts/worker.ts"
   },
   "prisma": {

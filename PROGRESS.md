@@ -758,6 +758,37 @@ producto real con su sello de confianza real, un token inexistente nunca da
 datos, revocar y caducar lo dejan inservible con su motivo, y el informe de
 tienda funciona sin inventar un sello que no existe.
 
+## Mejora 11 · Buscador global real (✅)
+
+El buscador del header siempre llevaba a Winning Products con el texto como
+filtro, buscara lo que buscara: escribir el nombre de una tienda o de un
+anuncio no encontraba nada. Ahora busca de verdad en las cuatro cosas que
+tiene el panel.
+
+### Qué se ha construido
+- **`GET /api/buscar?q=`**: productos (título/descripción/nicho), tiendas
+  (nombre/dominio/nicho — `searchStores` nuevo en `src/lib/dal.ts`),
+  anuncios (titular/cuerpo/anunciante, reutiliza `listAds`) y páginas del
+  panel (`DASHBOARD_NAV` filtrado por texto). Las páginas se filtran también
+  por lo que la sesión puede ver de verdad: un plan sin equipo nunca ve
+  «Equipo» sugerido.
+- **`BuscadorGlobal`** (`src/components/dashboard/buscador-global.tsx`):
+  busca con 250 ms de retraso (no una petición por tecla), resultados
+  agrupados por tipo con su icono o miniatura, y navegación por teclado
+  completa (↓/↑ resalta, Enter va al resultado resaltado o al primero si no
+  hay ninguno resaltado, Escape cierra). Si no hay nada que resaltar ni
+  resultados, Enter cae en el catálogo filtrado de siempre: el buscador
+  nunca se queda sin hacer nada.
+- Sin pantalla nueva: sustituye al formulario que ya estaba en la cabecera.
+
+### Verificación
+`npm run verify:buscador` (nuevo, 9/9): la API exige sesión, buscar «pet»
+devuelve productos y tiendas reales (no solo texto parecido por casualidad),
+un término sin coincidencias no inventa nada, un plan sin equipo no ve
+«Equipo» sugerido, escribir abre el panel, Enter con un resultado resaltado
+navega a ESE resultado (no siempre a Winning Products) y Enter sin resaltar
+cae en el catálogo filtrado.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

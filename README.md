@@ -133,6 +133,8 @@ Genera un secreto de producción con `openssl rand -base64 32`.
 | `npm run verify:equipos` | 42 comprobaciones de equipos, asientos (incluida la compra de asientos extra), invitaciones, webhooks y su historial de entregas |
 | `npm run verify:webhooks-historial` | 3 comprobaciones de que el historial de entregas se recorta a 50 por webhook (no crece sin límite) |
 | `npm run verify:onboarding` | 12 comprobaciones del onboarding de 3 pasos (aparece, nicho, límite real del plan al seguir tiendas, saltar, no repetirse) |
+| `npm run verify:informes-compartidos` | 10 comprobaciones del enlace público de informes (plan Agency, sello de confianza real, caducidad, revocación) |
+| `npm run verify:buscador` | 9 comprobaciones del buscador global (productos/tiendas/anuncios/páginas reales, respeta el plan, teclado) |
 | `npm run chromium` | Prepara el Chromium local que usan las capturas y las verificaciones |
 | `npm run build:pages` | Exporta el sitio estático para GitHub Pages a `docs/` |
 | `npm run preview:pages` | Sirve `docs/` igual que GitHub Pages (`http://localhost:4000/OmegaHub/`) |
@@ -222,6 +224,7 @@ Todas las rutas devuelven JSON y exigen sesión salvo las públicas indicadas.
 | `GET` | `/api/auth/verify-email?token=` | Verificación de correo |
 | `PATCH` | `/api/user/profile` \| `/api/user/password` | Perfil y contraseña |
 | `PATCH` | `/api/onboarding` | Onboarding de 3 pasos: nicho, y marca completado/saltado |
+| `GET` | `/api/buscar?q=` | Buscador global: productos, tiendas, anuncios y páginas, agrupados y filtrados por el plan de la sesión |
 | `GET` | `/api/products` | Catálogo con filtros, orden y paginación |
 | `GET` | `/api/products/export` | Exportación CSV (UTF-8 con BOM) |
 | `GET/POST/DELETE` | `/api/saved-products` | Favoritos |

@@ -404,6 +404,23 @@ export async function listStores(limite = 12): Promise<StoreDTO[]> {
   return tiendas.map(toStoreDTO);
 }
 
+/** Tiendas que coinciden con un texto (nombre, dominio o nicho). Para el buscador global. */
+export async function searchStores(busqueda: string, limite = 5): Promise<StoreDTO[]> {
+  const tiendas = await prisma.store.findMany({
+    where: {
+      OR: [
+        { name: { contains: busqueda } },
+        { domain: { contains: busqueda } },
+        { niche: { contains: busqueda } },
+      ],
+    },
+    orderBy: { estimatedMonthlyRevenue: "desc" },
+    include: { storeProducts: { orderBy: { salesRank: "asc" }, take: 5 } },
+    take: limite,
+  });
+  return tiendas.map(toStoreDTO);
+}
+
 /** Detalle de una tienda con su timeline de cambios. */
 export async function getStoreDetail(id: string) {
   const tienda = await prisma.store.findUnique({
