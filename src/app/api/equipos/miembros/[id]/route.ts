@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { asientosDelPlan, planEfectivo, precioAsientoExtra } from "@/lib/equipos";
 import { logger } from "@/lib/logger";
 
 /**
@@ -79,5 +80,22 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   await prisma.teamMember.delete({ where: { id } });
   logger.info("equipo_plaza_revocada", { miembro: id, por: sesion.user.email });
 
-  return NextResponse.json({ ok: true });
+  // Si queda capacidad extra pagada sin usar, se lo decimos al propietario:
+  // nunca se reduce ni se reembolsa solo, es él quien decide en Equipo.
+  const equipo = revision.miembro?.team;
+  let sugerenciaReducir: { extraSeatsSobrantes: number; ahorroMensual: number } | null = null;
+  if (equipo) {
+    const activos = equipo.members.filter(
+      (otro) => otro.status === "ACTIVE" && otro.id !== id,
+    ).length;
+    const plan = await planEfectivo(equipo.ownerId, sesion.user.planType);
+    const precioExtra = precioAsientoExtra(plan);
+    const necesarios = Math.max(0, activos - asientosDelPlan(plan));
+    const sobrantes = Math.max(0, equipo.extraSeats - necesarios);
+    if (precioExtra && sobrantes > 0) {
+      sugerenciaReducir = { extraSeatsSobrantes: sobrantes, ahorroMensual: sobrantes * precioExtra };
+    }
+  }
+
+  return NextResponse.json({ ok: true, sugerenciaReducir });
 }

@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asientosDelPlan, correoValido, planMasAlto, planMayorOIgual } from "@/lib/equipos";
+import {
+  asientosDelPlan,
+  asientosTotales,
+  correoValido,
+  planMasAlto,
+  planMayorOIgual,
+  precioAsientoExtra,
+} from "@/lib/equipos";
 import {
   EVENTOS_WEBHOOK,
   construirCuerpo,
@@ -34,6 +41,21 @@ describe("Equipos · planes y asientos", () => {
     expect(asientosDelPlan("PRO")).toBe(1);
     expect(asientosDelPlan("BUSINESS")).toBe(5);
     expect(asientosDelPlan("AGENCY")).toBe(15);
+  });
+
+  it("solo Business y Agency venden asientos extra", () => {
+    expect(precioAsientoExtra("FREE")).toBeNull();
+    expect(precioAsientoExtra("PRO")).toBeNull();
+    expect(precioAsientoExtra("BUSINESS")).toBe(12);
+    expect(precioAsientoExtra("AGENCY")).toBe(9);
+  });
+
+  it("suma los asientos extra a los incluidos del plan", () => {
+    expect(asientosTotales("BUSINESS", 0)).toBe(5);
+    expect(asientosTotales("BUSINESS", 3)).toBe(8);
+    expect(asientosTotales("AGENCY", 10)).toBe(25);
+    // Nunca negativo, aunque llegue un valor corrupto.
+    expect(asientosTotales("BUSINESS", -2)).toBe(5);
   });
 
   it("normaliza el correo y rechaza lo que no lo es", () => {

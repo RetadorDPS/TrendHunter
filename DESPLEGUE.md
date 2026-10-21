@@ -64,6 +64,7 @@
 | `FACEBOOK_ACCESS_TOKEN` | gratis | app de Meta verificada |
 | `STRIPE_SECRET_KEY/WEBHOOK_SECRET` | cuando cobres | modo test primero |
 | `STRIPE_PRICE_PRO/BUSINESS/AGENCY` | cuando cobres | precios 19/49/149 $ |
+| `STRIPE_PRICE_SEAT_BUSINESS/AGENCY` | opcional | asientos extra 12/9 $ por unidad |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | para push | `npx web-push generate-vapid-keys` |
 | `VAPID_PRIVATE_KEY` | para push | la misma orden (solo en el servidor) |
 | `VAPID_SUBJECT` | para push | `mailto:tu@correo.com` |
@@ -130,8 +131,13 @@ Los flujos ya existen y se activan solos al subir el repo:
    PRO 19 $/mes, BUSINESS 49 $/mes y AGENCY 149 $/mes
    → sus `price_…` en `.env` (`STRIPE_PRICE_PRO`,
    `STRIPE_PRICE_BUSINESS`, `STRIPE_PRICE_AGENCY`).
-4. Prueba con tarjeta **4242 4242 4242 4242**.
-5. Para cobrar de verdad: cambia a claves `sk_live_…` y reinicia.
+4. Asientos extra del equipo (opcional, solo si vendes Business/Agency):
+   dos precios recurrentes «por unidad» más, 12 $/mes y 9 $/mes
+   → `STRIPE_PRICE_SEAT_BUSINESS`, `STRIPE_PRICE_SEAT_AGENCY`. Sin ellos,
+   comprar asientos extra queda en modo demostración (se guarda pero no se
+   cobra) y la interfaz lo dice.
+5. Prueba con tarjeta **4242 4242 4242 4242**.
+6. Para cobrar de verdad: cambia a claves `sk_live_…` y reinicia.
 
 ## 7b · Lo que ya funciona sin tocar nada
 

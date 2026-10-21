@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { asientosDelPlan } from "@/lib/equipos";
+import { asientosTotales } from "@/lib/equipos";
 import { createNotification } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
 import { enviarAWebhooks } from "@/lib/webhooks";
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
   const plan = miembro.team.owner.planType;
   const activos = miembro.team.members.filter((otro) => otro.status === "ACTIVE").length;
-  const asientos = asientosDelPlan(plan);
+  const asientos = asientosTotales(plan, miembro.team.extraSeats);
   if (activos >= asientos && miembro.status !== "ACTIVE") {
     return NextResponse.json(
       { error: "El equipo ya tiene todas sus plazas ocupadas. Pide al propietario que amplíe el plan." },

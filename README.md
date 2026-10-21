@@ -43,7 +43,7 @@ las creatividades de tu campaña con IA.
 | 11 | Panel de administración | `/dashboard/admin` | Alta de productos, aprobación de scrapings, gestión de usuarios y revocación de acceso |
 | 12 | API pública v1 | `/dashboard/api`, `/api/v1/*` | Claves con hash SHA-256, cuotas por minuto y día, CORS, OpenAPI 3.1 y 9 endpoints de solo lectura ([API.md](API.md)) |
 | 14 | Confianza del dato | catálogo, ficha y PDF | Sello Verificado/Parcial/Estimado en cada producto, índice 0–100 con sus cuatro factores, panel de procedencia con fuente, fecha y enlace de comprobación, y filtro «solo datos verificados» |
-| 15 | Equipos y asientos | `/dashboard/equipos`, `/equipos/aceptar` | Business 5 plazas y Agency 15: invitar por correo, roles OWNER/ADMIN/MEMBER, heredar el plan del equipo y revocar accesos |
+| 15 | Equipos y asientos | `/dashboard/equipos`, `/equipos/aceptar` | Business 5 plazas y Agency 15: invitar por correo, roles OWNER/ADMIN/MEMBER, heredar el plan del equipo, revocar accesos y comprar asientos extra (facturación por `quantity` en Stripe) |
 | 16 | Webhooks salientes | `/dashboard/settings/notifications` | Avisos a Slack, Discord o cualquier automatización (n8n, Make, Zapier), con firma HMAC y prueba de entrega |
 | 13 | PWA y avisos push | `/manifest.webmanifest`, `/dashboard/settings/notifications` | Instalable en Android, iPhone y escritorio; service worker con caché de estáticos y pantalla sin conexión; alertas al móvil con VAPID por `web-push` |
 
@@ -91,7 +91,7 @@ Resumen:
 | Sesiones | `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL` | Sí en producción |
 | Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Opcional |
 | IA | `AI_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL` | Opcional (sin claves se usa el motor de plantillas propio) |
-| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`, `STRIPE_WEBHOOK_SECRET` | Opcional (sin claves, modo demostración) |
+| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`, `STRIPE_PRICE_AGENCY`, `STRIPE_PRICE_SEAT_BUSINESS`, `STRIPE_PRICE_SEAT_AGENCY`, `STRIPE_WEBHOOK_SECRET` | Opcional (sin claves, modo demostración) |
 | Redis/BullMQ | `REDIS_URL` | Opcional (sin Redis, ejecución inline) |
 | SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Opcional (sin SMTP, los correos se registran en consola) |
 | Scraping | `PLAYWRIGHT_CHROMIUM_EXECUTABLE`, `SCRAPING_REAL`, `SCRAPER_FORCE_SIMULATED` | Opcional |
@@ -127,7 +127,7 @@ Genera un secreto de producción con `openssl rand -base64 32`.
 | `npm run verify:ingesta` | 45 comprobaciones de la ingesta real (catálogo, cambios, cruce, tendencias y caducidad del sello) |
 | `npm run captura:fuentes` | Capturas de la sección «Fuentes en vivo» |
 | `npm run confianza:recalcular` | Recalcula el nivel de confianza de todos los productos |
-| `npm run verify:equipos` | 33 comprobaciones de equipos, asientos, invitaciones y webhooks |
+| `npm run verify:equipos` | 40 comprobaciones de equipos, asientos (incluida la compra de asientos extra), invitaciones y webhooks |
 | `npm run chromium` | Prepara el Chromium local que usan las capturas y las verificaciones |
 | `npm run build:pages` | Exporta el sitio estático para GitHub Pages a `docs/` |
 | `npm run preview:pages` | Sirve `docs/` igual que GitHub Pages (`http://localhost:4000/OmegaHub/`) |
@@ -244,6 +244,7 @@ Todas las rutas devuelven JSON y exigen sesión salvo las públicas indicadas.
 | `GET` | `/api/equipos/invitaciones?token=` | Datos públicos de una invitación (sin ids ni datos internos) |
 | `POST` | `/api/equipos/invitaciones/aceptar` | Acepta la invitación; exige que el correo de la sesión sea el invitado |
 | `PATCH/DELETE` | `/api/equipos/miembros/:id` | Cambia el rol o revoca la plaza (el OWNER no se puede quitar) |
+| `POST` | `/api/equipos/asientos` | Compra o reduce asientos extra del equipo (presupuesto exacto, confirmación explícita) |
 | `GET/POST` | `/api/webhooks` | Webhooks salientes (máx. 10, solo https público) |
 | `PATCH/DELETE` | `/api/webhooks/:id` | Pausar, reanudar o borrar |
 | `POST` | `/api/webhooks/:id/probar` | Envío de prueba (10/hora) con el resultado real |

@@ -823,6 +823,12 @@ model Team {
   ownerId   String
   /// Asientos contratados según el plan del dueño (se recalcula al vuelo).
   seats     Int      @default(1)
+  /// Asientos extra comprados por encima de los incluidos en el plan (se
+  /// facturan como `quantity` de un ítem adicional en la suscripción de Stripe).
+  extraSeats Int     @default(0)
+  /// Id del subscription item de Stripe que factura los asientos extra (null
+  /// si no hay ninguno contratado o si la cuenta está en modo demostración).
+  stripeSeatItemId String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

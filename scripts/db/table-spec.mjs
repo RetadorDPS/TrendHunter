@@ -556,6 +556,8 @@ export const TABLES = [
       { name: "name", type: "text" },
       { name: "ownerId", type: "text", references: { table: "User", onDelete: "Cascade" } },
       { name: "seats", type: "int", default: { value: 1 } },
+      { name: "extraSeats", type: "int", default: { value: 0 } },
+      { name: "stripeSeatItemId", type: "text", nullable: true, unique: true },
       { name: "createdAt", type: "datetime", default: now },
       { name: "updatedAt", type: "datetime", default: now, updatedAt: true },
     ],

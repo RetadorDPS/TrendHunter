@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { asientosDelPlan, correoValido, planEfectivo } from "@/lib/equipos";
+import { asientosTotales, correoValido, planEfectivo, precioAsientoExtra } from "@/lib/equipos";
 import { createNotification } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
 
@@ -73,12 +73,16 @@ export async function POST(request: Request) {
   }
 
   const plan = await planEfectivo(equipo.ownerId, sesion.user.planType);
-  const asientos = asientosDelPlan(plan);
+  const asientos = asientosTotales(plan, equipo.extraSeats);
   const activos = equipo.members.filter((miembro) => miembro.status === "ACTIVE").length;
   const pendientes = equipo.members.filter((miembro) => miembro.status === "INVITED").length;
   if (activos >= asientos && !equipo.members.some((miembro) => miembro.email === email)) {
+    const precioExtra = precioAsientoExtra(plan);
     return NextResponse.json(
-      { error: `Tu plan incluye ${asientos} plazas y ya hay ${activos} personas dentro. ${pendientes > 0 ? "Hay invitaciones pendientes." : "Mejora el plan o libera una plaza."}` },
+      {
+        error: `Tu plan tiene ${asientos} plazas (${equipo.extraSeats} extra) y ya hay ${activos} personas dentro. ${pendientes > 0 ? "Hay invitaciones pendientes." : precioExtra ? `Puedes comprar una plaza extra por ${precioExtra} $/mes desde Equipo.` : "Libera una plaza."}`,
+        costoAsientoExtra: precioExtra,
+      },
       { status: 409 },
     );
   }

@@ -559,6 +559,63 @@ El único aviso que queda es honesto y esperado: en el sandbox
 `/api/tendencias/del-dia` responde 502 porque no hay red, y la pantalla lo dice
 mostrando las últimas tendencias guardadas.
 
+## Mejora 6 · Facturación por asientos (✅)
+
+Hasta ahora el equipo tenía las plazas fijas del plan (5 en Business, 15 en
+Agency) y no había forma de crecer sin subir de plan entero. Ahora se puede
+comprar capacidad extra, facturada de verdad.
+
+### Qué se ha construido
+- **Esquema**: `Team.extraSeats` (asientos extra contratados) y
+  `Team.stripeSeatItemId` (el subscription item de Stripe que los factura).
+- **Precio por asiento extra**: 12 $/mes en Business, 9 $/mes en Agency
+  (`EXTRA_SEAT_PRICE` en `src/lib/constants.ts`). Solo estos dos planes venden
+  asientos extra.
+- **`POST /api/equipos/asientos`** (solo el propietario, es quien paga):
+  - Sin `confirmar`: devuelve el presupuesto exacto (coste actual, nuevo y la
+    diferencia mensual) sin tocar nada.
+  - Con `confirmar: true`: aplica el cambio. Si hay una suscripción de Stripe
+    real (no la de modo demostración) y las claves `STRIPE_PRICE_SEAT_*`
+    están configuradas, sincroniza la cantidad de un **ítem aparte** de la
+    misma suscripción (`sincronizarAsientosStripe` en `src/lib/stripe.ts`):
+    así el precio del plan base no cambia y el asiento extra se cobra por lo
+    que cuesta de verdad. Sin claves, queda en modo demostración y lo dice.
+  - Nunca deja bajar los asientos extra por debajo de lo que hace falta para
+    cubrir a las personas activas de hoy.
+- **Invitar por encima de las plazas incluidas** ya no es un muro: el error
+  402/409 trae `costoAsientoExtra` para que la interfaz ofrezca comprar.
+- **Revocar una plaza nunca reduce ni reembolsa solo**: si queda capacidad
+  extra pagada sin usar, la respuesta trae `sugerenciaReducir`
+  (`extraSeatsSobrantes`, `ahorroMensual`) y el propietario decide en
+  «Equipo» si la reduce.
+- **Interfaz**: dentro de la misma tarjeta de plazas en `/dashboard/equipos`
+  (sin pantalla nueva), un control de asientos extra con su precio, el coste
+  mensual actual y confirmación explícita antes de cambiar nada.
+
+### Decisión de diseño
+El encargo pedía «asientos extra como cantidad de la suscripción». Un solo
+precio con `quantity = asientos totales` multiplicaría el precio del plan
+entero (49 $ × 7 en vez de 49 $ + 2×12 $), así que los asientos extra viajan
+como su propio ítem (su propio precio por unidad) dentro de la MISMA
+suscripción: sigue siendo «cantidad de la suscripción de Stripe», pero cobra
+lo que cuesta cada plaza extra, no el plan completo otra vez.
+
+### Verificación
+`npm run verify:equipos`: **40/40** (7 casos nuevos: presupuesto exacto sin
+tocar nada, confirmar aplica el cambio en modo demo, el equipo refleja
+asientos y coste, un plan sin equipo no puede comprar, reducir cuando no
+hacen falta, y la sugerencia de reducir al revocar). Tests unitarios en
+`src/lib/__tests__/equiposWebhooks.test.ts` (+3 casos: precio por plan, suma
+de asientos totales, nunca negativo). `npm test`: 172/172.
+
+### Lo que falta por credencial
+`STRIPE_PRICE_SEAT_BUSINESS` y `STRIPE_PRICE_SEAT_AGENCY` (precios
+recurrentes «por unidad» creados en el panel de Stripe). Sin ellos, comprar
+asientos extra queda en modo demostración (se guarda en la base de datos y
+lo dice, pero no se cobra). Con Stripe conectado y esas claves, el mismo
+código sincroniza la suscripción real la primera vez que el propietario
+confirma un cambio.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

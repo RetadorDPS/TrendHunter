@@ -217,11 +217,20 @@ Estas rutas usan la **sesión del panel**, no una clave de API:
 | `GET` | `/api/equipos/invitaciones?token=` | Datos públicos de la invitación (sin ids internos) |
 | `POST` | `/api/equipos/invitaciones/aceptar` | `{ "token" }`; exige sesión con el correo invitado |
 | `PATCH` | `/api/equipos/miembros/{id}` | `{ "role" }`; un ADMIN no puede nombrar ADMIN |
-| `DELETE` | `/api/equipos/miembros/{id}` | Revoca la plaza (el OWNER no se puede quitar) |
+| `DELETE` | `/api/equipos/miembros/{id}` | Revoca la plaza (el OWNER no se puede quitar); si sobra capacidad extra pagada, devuelve `sugerenciaReducir` |
+| `POST` | `/api/equipos/asientos` | `{ "extraSeats", "confirmar"? }`; solo el OWNER. Sin `confirmar` devuelve el presupuesto exacto; con `confirmar: true` aplica el cambio |
 
 Plazas: Free 1 · Pro 1 · Business 5 · Agency 15. La plaza se ocupa al aceptar,
 no al invitar. El enlace caduca a los 14 días y cada invitación nueva invalida
 la anterior.
+
+**Asientos extra** (por encima de los incluidos en el plan): Business 12 $/mes
+cada uno, Agency 9 $/mes. Se facturan como un ítem aparte (`quantity`) dentro
+de la misma suscripción de Stripe (`STRIPE_PRICE_SEAT_BUSINESS` /
+`STRIPE_PRICE_SEAT_AGENCY`); sin esas claves, el cambio se guarda en modo
+demostración. Nunca se reduce ni se reembolsa en silencio: al revocar una
+plaza que deja capacidad extra sin usar, la API solo lo sugiere
+(`sugerenciaReducir`) y es el propietario quien confirma la reducción.
 
 ### Webhooks salientes
 

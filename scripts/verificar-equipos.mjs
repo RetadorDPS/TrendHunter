@@ -300,6 +300,69 @@ try {
     `${ascender.estado}`,
   );
 
+  // ------------------------------------- 6b · asientos extra (facturación)
+  const presupuesto = await pedir(admin.pagina, "/api/equipos/asientos", {
+    metodo: "POST",
+    cuerpo: { extraSeats: 2 },
+  });
+  registrar(
+    "Pide 2 asientos extra sin confirmar y da el coste exacto",
+    presupuesto.estado === 200 &&
+      presupuesto.datos.requiereConfirmacion === true &&
+      presupuesto.datos.diferenciaMensual === 2 * 12 &&
+      presupuesto.datos.nuevo?.costoMensual === 24,
+    `+${presupuesto.datos.diferenciaMensual} $/mes · nuevo total ${presupuesto.datos.nuevo?.costoMensual} $/mes`,
+  );
+  registrar(
+    "El presupuesto no cambia nada todavía",
+    (await pedir(admin.pagina, "/api/equipos")).datos.propio?.asientosExtra === 0,
+  );
+
+  const compra = await pedir(admin.pagina, "/api/equipos/asientos", {
+    metodo: "POST",
+    cuerpo: { extraSeats: 2, confirmar: true },
+  });
+  registrar(
+    "Confirmar la compra actualiza los asientos extra (modo demo sin Stripe)",
+    compra.estado === 200 &&
+      compra.datos.ok === true &&
+      compra.datos.modo === "demo" &&
+      compra.datos.extraSeats === 2 &&
+      compra.datos.asientosTotales === 7,
+    `modo=${compra.datos.modo} · ${compra.datos.extraSeats} extra · ${compra.datos.asientosTotales} totales`,
+  );
+
+  const equipoConExtra = await pedir(admin.pagina, "/api/equipos");
+  registrar(
+    "El equipo refleja los 2 asientos extra y su coste",
+    equipoConExtra.datos.propio?.asientosExtra === 2 &&
+      equipoConExtra.datos.propio?.asientos === 7 &&
+      equipoConExtra.datos.propio?.costoAsientosExtraMensual === 24,
+    `${equipoConExtra.datos.propio?.asientos} plazas · ${equipoConExtra.datos.propio?.costoAsientosExtraMensual} $/mes`,
+  );
+
+  const otroUsuarioNoAdministra = await pedir(demo.pagina, "/api/equipos/asientos", {
+    metodo: "POST",
+    cuerpo: { extraSeats: 3 },
+  });
+  registrar(
+    "Un plan sin equipo no puede comprar asientos (404)",
+    otroUsuarioNoAdministra.estado === 404,
+    `${otroUsuarioNoAdministra.estado}`,
+  );
+
+  const reducirDeMas = await pedir(admin.pagina, "/api/equipos/asientos", {
+    metodo: "POST",
+    cuerpo: { extraSeats: 1, confirmar: true },
+  });
+  registrar(
+    "Reducir asientos extra funciona cuando no hacen falta",
+    reducirDeMas.estado === 200 &&
+      reducirDeMas.datos.ok === true &&
+      reducirDeMas.datos.extraSeats === 1,
+    `${reducirDeMas.estado} · ${reducirDeMas.datos.extraSeats} extra`,
+  );
+
   // ------------------------------------- 7 · webhooks (validación)
   const http = await pedir(admin.pagina, "/api/webhooks", {
     metodo: "POST",
@@ -468,8 +531,21 @@ try {
   );
 
   // ------------------------------------- limpieza
-  await pedir(admin.pagina, `/api/equipos/miembros/${plazaFree?.id}`, {
-    metodo: "DELETE",
+  const revocacionConSugerencia = await pedir(
+    admin.pagina,
+    `/api/equipos/miembros/${plazaFree?.id}`,
+    { metodo: "DELETE" },
+  );
+  registrar(
+    "Al revocar sobra un asiento extra, se sugiere reducir (nunca se baja solo)",
+    revocacionConSugerencia.estado === 200 &&
+      revocacionConSugerencia.datos.sugerenciaReducir?.extraSeatsSobrantes === 1 &&
+      revocacionConSugerencia.datos.sugerenciaReducir?.ahorroMensual === 12,
+    `sobrantes=${revocacionConSugerencia.datos.sugerenciaReducir?.extraSeatsSobrantes} · ahorro ${revocacionConSugerencia.datos.sugerenciaReducir?.ahorroMensual} $/mes`,
+  );
+  await pedir(admin.pagina, "/api/equipos/asientos", {
+    metodo: "POST",
+    cuerpo: { extraSeats: 0, confirmar: true },
   });
   await pedir(admin.pagina, `/api/webhooks/${creado.datos.webhook?.id}`, {
     metodo: "DELETE",

@@ -110,6 +110,21 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   },
 };
 
+/**
+ * Precio mensual de un asiento extra, por encima de los incluidos en el plan.
+ * Solo Business y Agency tienen equipo; `null` significa que ese plan no
+ * vende asientos extra (es individual o ya no tiene tope práctico).
+ */
+export const EXTRA_SEAT_PRICE: Record<PlanType, number | null> = {
+  FREE: null,
+  PRO: null,
+  BUSINESS: 12,
+  AGENCY: 9,
+};
+
+/** Máximo de asientos extra que se pueden comprar de una vez (cordura, no técnico). */
+export const MAX_EXTRA_SEATS = 50;
+
 /** Definición comercial de los planes mostrada en /pricing. */
 export interface PlanDefinition {
   id: PlanType;

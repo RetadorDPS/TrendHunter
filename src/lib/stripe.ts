@@ -40,6 +40,15 @@ export function getPriceId(plan: PlanType): string | null {
   return variables[plan] ?? null;
 }
 
+/** Precio de Stripe del asiento extra de un plan (Business/Agency), si existe. */
+export function getSeatPriceId(plan: PlanType): string | null {
+  const variables: Partial<Record<PlanType, string | undefined>> = {
+    BUSINESS: process.env.STRIPE_PRICE_SEAT_BUSINESS,
+    AGENCY: process.env.STRIPE_PRICE_SEAT_AGENCY,
+  };
+  return variables[plan] ?? null;
+}
+
 /** Mapa inverso: precio de Stripe → plan de la plataforma. */
 export function getPlanFromPriceId(priceId: string | null | undefined): PlanType {
   if (!priceId) return "FREE";
@@ -93,6 +102,49 @@ export async function createCheckoutSession(params: {
   });
   if (!sesion.url) throw new Error("Stripe no devolvió la URL de pago.");
   return sesion.url;
+}
+
+/**
+ * Sincroniza la cantidad de asientos extra con la suscripción real de Stripe.
+ *
+ * Los asientos extra viajan como un ítem aparte dentro de la MISMA
+ * suscripción (su propio precio por unidad): así el plan base no cambia de
+ * precio y los asientos se facturan por lo que de verdad cuestan.
+ *
+ *   · extraSeats > 0 y no hay ítem todavía → se crea con esa cantidad.
+ *   · extraSeats > 0 y ya hay ítem         → se actualiza la cantidad.
+ *   · extraSeats === 0 y hay ítem          → se borra (deja de facturarse).
+ *
+ * Devuelve el id del subscription item (o `null` si ya no existe ninguno).
+ */
+export async function sincronizarAsientosStripe(params: {
+  subscriptionId: string;
+  plan: PlanType;
+  extraSeats: number;
+  itemIdActual?: string | null;
+}): Promise<string | null> {
+  const stripe = getStripe();
+  const seatPriceId = getSeatPriceId(params.plan);
+  if (!seatPriceId) {
+    throw new Error(`Falta el precio de asiento extra para ${params.plan}. Define STRIPE_PRICE_SEAT_${params.plan}.`);
+  }
+
+  if (params.extraSeats <= 0) {
+    if (params.itemIdActual) await stripe.subscriptionItems.del(params.itemIdActual);
+    return null;
+  }
+
+  if (params.itemIdActual) {
+    const item = await stripe.subscriptionItems.update(params.itemIdActual, { quantity: params.extraSeats });
+    return item.id;
+  }
+
+  const item = await stripe.subscriptionItems.create({
+    subscription: params.subscriptionId,
+    price: seatPriceId,
+    quantity: params.extraSeats,
+  });
+  return item.id;
 }
 
 /** Crea una sesión del portal de cliente (gestionar/cancelar suscripción). */

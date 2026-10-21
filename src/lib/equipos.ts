@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { PLAN_LIMITS } from "@/lib/constants";
+import { EXTRA_SEAT_PRICE, PLAN_LIMITS } from "@/lib/constants";
 import type { PlanType, TeamRole } from "@/types";
 
 /**
@@ -33,9 +33,19 @@ export function planMasAlto(planes: PlanType[]): PlanType {
   return planes.reduce<PlanType>((mejor, plan) => (planMayorOIgual(plan, mejor) ? plan : mejor), "FREE");
 }
 
-/** Asientos que incluye un plan. */
+/** Asientos que incluye un plan (sin contar los extra comprados). */
 export function asientosDelPlan(plan: PlanType): number {
   return PLAN_LIMITS[plan]?.seats ?? 1;
+}
+
+/** Precio mensual de un asiento extra de ese plan, o `null` si no vende. */
+export function precioAsientoExtra(plan: PlanType): number | null {
+  return EXTRA_SEAT_PRICE[plan] ?? null;
+}
+
+/** Asientos totales de un equipo: los del plan más los extra contratados. */
+export function asientosTotales(plan: PlanType, extraSeats: number): number {
+  return asientosDelPlan(plan) + Math.max(0, extraSeats);
 }
 
 export interface EquipoResumen {
@@ -45,6 +55,10 @@ export interface EquipoResumen {
   propietarioEmail: string;
   plan: PlanType;
   asientos: number;
+  asientosIncluidos: number;
+  asientosExtra: number;
+  precioAsientoExtra: number | null;
+  costoAsientosExtraMensual: number;
   ocupados: number;
   libres: number;
   esPropietario: boolean;
@@ -114,6 +128,7 @@ type EquipoConRelaciones = {
   name: string;
   ownerId: string;
   seats: number;
+  extraSeats: number;
   owner: { name: string | null; email: string; planType: PlanType };
   members: Array<{
     id: string;
@@ -131,14 +146,22 @@ type EquipoConRelaciones = {
 /** Convierte la fila de Prisma al DTO que usa la interfaz. */
 function aResumen(equipo: EquipoConRelaciones, esPropietario: boolean): EquipoResumen {
   const activos = equipo.members.filter((miembro) => miembro.status === "ACTIVE").length;
-  const asientos = Math.max(equipo.seats, asientosDelPlan(equipo.owner.planType));
+  const plan = equipo.owner.planType as PlanType;
+  const incluidos = Math.max(equipo.seats, asientosDelPlan(plan));
+  const extra = Math.max(0, equipo.extraSeats);
+  const asientos = incluidos + extra;
+  const precioExtra = precioAsientoExtra(plan);
   return {
     id: equipo.id,
     nombre: equipo.name,
     propietario: equipo.owner.name ?? equipo.owner.email,
     propietarioEmail: equipo.owner.email,
-    plan: equipo.owner.planType as PlanType,
+    plan,
     asientos,
+    asientosIncluidos: incluidos,
+    asientosExtra: extra,
+    precioAsientoExtra: precioExtra,
+    costoAsientosExtraMensual: precioExtra ? precioExtra * extra : 0,
     ocupados: activos,
     libres: Math.max(0, asientos - activos),
     esPropietario,

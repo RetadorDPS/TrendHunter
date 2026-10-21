@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -52,6 +52,10 @@ interface EquipoPanelProps {
     id: string;
     nombre: string;
     asientos: number;
+    asientosIncluidos: number;
+    asientosExtra: number;
+    precioAsientoExtra: number | null;
+    costoAsientosExtraMensual: number;
     ocupados: number;
     libres: number;
     plan: string;
@@ -106,6 +110,10 @@ export function EquipoPanel({
   const [rol, setRol] = useState<"ADMIN" | "MEMBER">("MEMBER");
   const [enlaceReciente, setEnlaceReciente] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [nuevoExtra, setNuevoExtra] = useState(equipo?.asientosExtra ?? 0);
+  useEffect(() => {
+    setNuevoExtra(equipo?.asientosExtra ?? 0);
+  }, [equipo?.asientosExtra]);
 
   const refrescar = () => iniciarTransicion(() => router.refresh());
 
@@ -214,10 +222,59 @@ export function EquipoPanel({
       const respuesta = await fetch(`/api/equipos/miembros/${miembro.id}`, {
         method: "DELETE",
       });
-      const datos = (await respuesta.json()) as { error?: string };
+      const datos = (await respuesta.json()) as {
+        error?: string;
+        sugerenciaReducir?: { extraSeatsSobrantes: number; ahorroMensual: number } | null;
+      };
       if (!respuesta.ok)
         throw new Error(datos.error ?? "No se pudo quitar la plaza.");
       toast.success("Plaza liberada");
+      if (datos.sugerenciaReducir) {
+        const { extraSeatsSobrantes, ahorroMensual } = datos.sugerenciaReducir;
+        toast(
+          `Te sobra${extraSeatsSobrantes === 1 ? "" : "n"} ${extraSeatsSobrantes} asiento${extraSeatsSobrantes === 1 ? "" : "s"} extra sin usar: reducirlos en «Asientos extra» ahorraría ${ahorroMensual} $/mes. No se baja solo.`,
+          { duration: 8_000 },
+        );
+      }
+      refrescar();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  /** Pide presupuesto y, si se confirma, cambia los asientos extra contratados. */
+  async function actualizarAsientos() {
+    if (!equipo || nuevoExtra === equipo.asientosExtra) return;
+    setOcupado("asientos");
+    try {
+      const presupuesto = await fetch("/api/equipos/asientos", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ extraSeats: nuevoExtra }),
+      });
+      const datosPresupuesto = (await presupuesto.json()) as {
+        error?: string;
+        diferenciaMensual?: number;
+        nuevo?: { costoMensual: number };
+      };
+      if (!presupuesto.ok)
+        throw new Error(datosPresupuesto.error ?? "No se pudo calcular el presupuesto.");
+
+      const diferencia = datosPresupuesto.diferenciaMensual ?? 0;
+      const aumenta = nuevoExtra > equipo.asientosExtra;
+      const texto = `Vas a ${aumenta ? "añadir" : "quitar"} ${Math.abs(nuevoExtra - equipo.asientosExtra)} asiento(s) extra: ${diferencia > 0 ? "+" : ""}${diferencia} $/mes (total asientos extra: ${datosPresupuesto.nuevo?.costoMensual ?? 0} $/mes). ¿Confirmas?`;
+      if (!window.confirm(texto)) return;
+
+      const respuesta = await fetch("/api/equipos/asientos", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ extraSeats: nuevoExtra, confirmar: true }),
+      });
+      const datos = (await respuesta.json()) as { error?: string; mensaje?: string };
+      if (!respuesta.ok) throw new Error(datos.error ?? "No se pudo actualizar los asientos.");
+      toast.success(datos.mensaje ?? "Asientos actualizados.");
       refrescar();
     } catch (error) {
       toast.error((error as Error).message);
@@ -302,14 +359,44 @@ export function EquipoPanel({
             )}
           </CardTitle>
           <CardDescription>
-            {equipo.ocupados} de {equipo.asientos} plazas ocupadas ·{" "}
-            {equipo.libres} libre
+            {equipo.ocupados} de {equipo.asientos} plazas ocupadas (
+            {equipo.asientosIncluidos} del plan
+            {equipo.asientosExtra > 0 ? ` + ${equipo.asientosExtra} extra` : ""}
+            ) · {equipo.libres} libre
             {equipo.libres === 1 ? "" : "s"}. Cada persona que entra usa el plan
             del equipo.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Progress value={uso} className="h-2" />
+          {puedeGestionar && equipo.precioAsientoExtra !== null && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 p-3 text-xs">
+              <Label htmlFor="asientos-extra" className="shrink-0 text-muted-foreground">
+                Asientos extra ({equipo.precioAsientoExtra} $/mes cada uno)
+              </Label>
+              <Input
+                id="asientos-extra"
+                type="number"
+                min={0}
+                max={50}
+                value={nuevoExtra}
+                onChange={(evento) => setNuevoExtra(Number(evento.target.value))}
+                className="h-8 w-20"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void actualizarAsientos()}
+                disabled={ocupado !== null || nuevoExtra === equipo.asientosExtra}
+                className="h-8 gap-1.5"
+              >
+                {ocupado === "asientos" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : null}
+                Actualizar ({equipo.costoAsientosExtraMensual} $/mes ahora)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -482,8 +569,10 @@ export function EquipoPanel({
                 </Button>
                 {equipo.libres === 0 && (
                   <p className="text-xs text-amber-300">
-                    Todas las plazas están ocupadas. Quita a alguien o amplía el
-                    plan.
+                    Todas las plazas están ocupadas.{" "}
+                    {equipo.precioAsientoExtra && puedeGestionar
+                      ? `Compra un asiento extra por ${equipo.precioAsientoExtra} $/mes arriba, o quita a alguien.`
+                      : "Quita a alguien o amplía el plan."}
                   </p>
                 )}
               </form>
