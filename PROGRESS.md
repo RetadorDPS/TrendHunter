@@ -643,6 +643,36 @@ demostración en vez de simular un cobro. En cuanto se configuren las claves,
 el mismo código (ya verificado) cobra de verdad con la tarjeta de prueba
 4242 4242 4242 4242, sin cambiar una línea.
 
+## Mejora 8 · Historial de entregas de webhooks (✅)
+
+El modelo `Webhook` solo guardaba contadores (`envios`, `fallos`,
+`ultimoEstado`, `ultimoError`, `ultimoEnvio`): bastaba para saber si algo iba
+mal hoy, pero no para ver qué pasó antes de la última entrega.
+
+### Qué se ha construido
+- **Modelo `WebhookEntrega`**: `webhookId`, `evento`, `estado` (código HTTP o
+  `null` si no llegó a responder), `latenciaMs`, `error`, `createdAt`.
+  Borrado en cascada con el webhook.
+- **`registrarResultado` (en `src/lib/webhooks.ts`) ahora hace dos cosas en
+  cada envío**: actualiza los contadores de siempre Y añade la entrega al
+  historial, recortado a las **últimas 50 por webhook** (se cuenta y se
+  borran las más antiguas que sobran, no crece sin límite).
+- **`GET /api/webhooks/{id}/entregas`**: las últimas 50 entregas, scoped al
+  dueño del webhook (404 si no es tuyo).
+- **Interfaz**: botón «Historial» dentro de cada webhook, en el mismo panel
+  de Notificaciones (`src/components/domain/webhooks-panel.tsx`), sin
+  pantalla nueva. Se carga una vez al abrirlo y se invalida solo cuando se
+  manda una prueba nueva.
+
+### Verificación
+`npm run verify:equipos` (ahora 42/42) comprueba que «Probar» deja una
+entrega real con su código, evento y latencia, y que otro usuario no puede
+leer el historial ajeno (404). `npm run verify:webhooks-historial` (nuevo,
+3/3) manda 55 entregas directamente a `enviarUno` (sin esperar el límite de
+10 pruebas/hora) y comprueba que la tabla se queda en exactamente 50 filas,
+con las más recientes, mientras los contadores (`envios`+`fallos`) siguen
+sumando las 55 de verdad.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

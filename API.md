@@ -241,6 +241,7 @@ plaza que deja capacidad extra sin usar, la API solo lo sugiere
 | `PATCH` | `/api/webhooks/{id}` | Pausa, reanuda, cambia nombre, URL o eventos |
 | `DELETE` | `/api/webhooks/{id}` | Borra |
 | `POST` | `/api/webhooks/{id}/probar` | Envío de prueba real (10/hora) |
+| `GET` | `/api/webhooks/{id}/entregas` | Últimas 50 entregas: evento, código HTTP, latencia (ms) y motivo del fallo |
 
 Eventos: `alerta`, `producto`, `precio`, `agotado`, `equipo`. Solo se admiten
 URLs `https` públicas (se rechazan localhost, rangos privados, metadatos del

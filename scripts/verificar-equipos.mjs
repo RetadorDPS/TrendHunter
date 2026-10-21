@@ -454,6 +454,24 @@ try {
     `${prueba.estado} · ${prueba.datos.motivo ?? prueba.datos.error ?? "entregado"}`,
   );
 
+  const entregas = await pedir(admin.pagina, `/api/webhooks/${creado.datos.webhook?.id}/entregas`);
+  registrar(
+    "El historial de entregas guarda la prueba real (código y motivo)",
+    entregas.estado === 200 &&
+      Array.isArray(entregas.datos.entregas) &&
+      entregas.datos.entregas.length >= 1 &&
+      entregas.datos.entregas[0].evento === "prueba" &&
+      typeof entregas.datos.entregas[0].latenciaMs === "number",
+    `${entregas.datos.entregas?.length} entrega(s) · evento=${entregas.datos.entregas?.[0]?.evento} · estado=${entregas.datos.entregas?.[0]?.estado ?? "sin respuesta"}`,
+  );
+
+  const entregasAjenas = await pedir(demo.pagina, `/api/webhooks/${creado.datos.webhook?.id}/entregas`);
+  registrar(
+    "Otro usuario no ve el historial de un webhook ajeno (404)",
+    entregasAjenas.estado === 404,
+    `${entregasAjenas.estado}`,
+  );
+
   const pausa = await pedir(
     admin.pagina,
     `/api/webhooks/${creado.datos.webhook?.id}`,

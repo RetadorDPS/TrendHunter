@@ -887,7 +887,27 @@ model Webhook {
   fallos     Int             @default(0)
   createdAt  DateTime        @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entregas WebhookEntrega[]
 
   @@index([userId])
+}
+
+/// Una entrega concreta de un webhook: lo que de verdad pasó al enviarlo.
+/// Se guardan solo las últimas 50 por webhook (ver `registrarResultado` en
+/// `src/lib/webhooks.ts`): es historial de depuración, no auditoría legal.
+model WebhookEntrega {
+  id         String   @id @default(cuid())
+  webhookId  String
+  /// Evento que disparó el envío (NEW_PRODUCT, PRICE_CHANGE, prueba…).
+  evento     String
+  /// Código HTTP de la respuesta; `null` si no llegó a responder (timeout, DNS…).
+  estado     Int?
+  latenciaMs Int?
+  error      String?
+  createdAt  DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
 }

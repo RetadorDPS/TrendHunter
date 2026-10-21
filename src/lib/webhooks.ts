@@ -405,6 +405,8 @@ export async function enviarUno(
       webhook.id,
       null,
       comprobacion.motivo ?? "URL no válida",
+      aviso.tipo ?? "alerta",
+      Date.now() - inicio,
     );
     return {
       webhookId: webhook.id,
@@ -428,6 +430,8 @@ export async function enviarUno(
   }
   cabeceras["X-TrendHunter-Event"] = aviso.tipo ?? "alerta";
 
+  const evento = aviso.tipo ?? "alerta";
+
   try {
     const respuesta = await fetch(webhook.url, {
       method: "POST",
@@ -438,15 +442,9 @@ export async function enviarUno(
     });
     const ok = respuesta.ok;
     const error = ok ? null : `El destino respondió ${respuesta.status}`;
-    await registrarResultado(webhook.id, respuesta.status, error);
-    return {
-      webhookId: webhook.id,
-      nombre: webhook.nombre,
-      ok,
-      estado: respuesta.status,
-      error,
-      duracionMs: Date.now() - inicio,
-    };
+    const duracionMs = Date.now() - inicio;
+    await registrarResultado(webhook.id, respuesta.status, error, evento, duracionMs);
+    return { webhookId: webhook.id, nombre: webhook.nombre, ok, estado: respuesta.status, error, duracionMs };
   } catch (excepcion) {
     const mensaje =
       excepcion instanceof Error && /timeout|aborted/i.test(excepcion.message)
@@ -454,23 +452,26 @@ export async function enviarUno(
         : excepcion instanceof Error
           ? excepcion.message.slice(0, 200)
           : String(excepcion).slice(0, 200);
-    await registrarResultado(webhook.id, null, mensaje);
-    return {
-      webhookId: webhook.id,
-      nombre: webhook.nombre,
-      ok: false,
-      estado: null,
-      error: mensaje,
-      duracionMs: Date.now() - inicio,
-    };
+    const duracionMs = Date.now() - inicio;
+    await registrarResultado(webhook.id, null, mensaje, evento, duracionMs);
+    return { webhookId: webhook.id, nombre: webhook.nombre, ok: false, estado: null, error: mensaje, duracionMs };
   }
 }
 
-/** Guarda estado, contador y último error del webhook. */
+/** Cuántas entregas se guardan como mucho por webhook (historial de depuración, no auditoría). */
+const RETENCION_ENTREGAS = 50;
+
+/**
+ * Guarda estado, contador y último error del webhook, y añade la entrega al
+ * historial (recortado a las últimas `RETENCION_ENTREGAS`: no crece sin
+ * límite).
+ */
 async function registrarResultado(
   webhookId: string,
   estado: number | null,
   error: string | null,
+  evento: string,
+  latenciaMs: number,
 ) {
   await prisma.webhook
     .update({
@@ -490,4 +491,21 @@ async function registrarResultado(
         error: String(fallo),
       }),
     );
+
+  await prisma.webhookEntrega
+    .create({ data: { webhookId, evento, estado, latenciaMs, error } })
+    .catch((fallo) =>
+      logger.aviso("webhook_entrega_no_guardada", { webhookId, error: String(fallo) }),
+    );
+
+  const total = await prisma.webhookEntrega.count({ where: { webhookId } });
+  if (total > RETENCION_ENTREGAS) {
+    const sobrantes = await prisma.webhookEntrega.findMany({
+      where: { webhookId },
+      orderBy: { createdAt: "asc" },
+      take: total - RETENCION_ENTREGAS,
+      select: { id: true },
+    });
+    await prisma.webhookEntrega.deleteMany({ where: { id: { in: sobrantes.map((fila) => fila.id) } } });
+  }
 }

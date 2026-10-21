@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
+  History,
   Loader2,
   Pause,
   Play,
@@ -44,6 +47,16 @@ interface EventoDefinicion {
   detalle: string;
 }
 
+interface EntregaItem {
+  id: string;
+  evento: string;
+  estado: number | null;
+  ok: boolean;
+  latenciaMs: number | null;
+  error: string | null;
+  fecha: string;
+}
+
 const PROVEEDORES = [
   { id: "SLACK", nombre: "Slack", ayuda: "Slack → Apps → Incoming Webhooks → copia la URL." },
   { id: "DISCORD", nombre: "Discord", ayuda: "Canal → Editar canal → Integraciones → Webhooks." },
@@ -72,6 +85,9 @@ export function WebhooksPanel({
   const [provider, setProvider] = useState<"SLACK" | "DISCORD" | "GENERIC">("SLACK");
   const [seleccion, setSeleccion] = useState<string[]>(["alerta"]);
   const [secretoNuevo, setSecretoNuevo] = useState<string | null>(null);
+  const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<Record<string, EntregaItem[]>>({});
+  const [cargandoHistorial, setCargandoHistorial] = useState<string | null>(null);
 
   const refrescar = () => iniciarTransicion(() => router.refresh());
 
@@ -117,6 +133,11 @@ export function WebhooksPanel({
       const datos = (await respuesta.json()) as { ok?: boolean; error?: string; estado?: number };
       if (!respuesta.ok || !datos.ok) throw new Error(datos.error ?? `El destino respondió ${datos.estado ?? "sin respuesta"}`);
       toast.success("Prueba entregada. Revisa tu canal.");
+      // La entrega nueva invalida el historial en caché: se recarga si se vuelve a abrir.
+      setHistorial((actual) => {
+        const { [id]: _descartado, ...resto } = actual;
+        return resto;
+      });
       refrescar();
     } catch (error) {
       toast.error((error as Error).message);
@@ -165,6 +186,28 @@ export function WebhooksPanel({
     }
   }
 
+  /** Muestra u oculta el historial de entregas de un webhook (lo carga una vez). */
+  async function verHistorial(id: string) {
+    if (historialAbierto === id) {
+      setHistorialAbierto(null);
+      return;
+    }
+    setHistorialAbierto(id);
+    if (historial[id]) return;
+    setCargandoHistorial(id);
+    try {
+      const respuesta = await fetch(`/api/webhooks/${id}/entregas`);
+      const datos = (await respuesta.json()) as { entregas?: EntregaItem[]; error?: string };
+      if (!respuesta.ok) throw new Error(datos.error ?? "No se pudo cargar el historial.");
+      setHistorial((actual) => ({ ...actual, [id]: datos.entregas ?? [] }));
+    } catch (error) {
+      toast.error((error as Error).message);
+      setHistorialAbierto(null);
+    } finally {
+      setCargandoHistorial(null);
+    }
+  }
+
   /** Alterna un evento en la suscripción. */
   function alternarEvento(id: string) {
     setSeleccion((actual) => (actual.includes(id) ? actual.filter((evento) => evento !== id) : [...actual, id]));
@@ -206,7 +249,8 @@ export function WebhooksPanel({
             {webhooks.length > 0 && (
               <ul className="divide-y divide-border/60">
                 {webhooks.map((webhook) => (
-                  <li key={webhook.id} className="flex flex-wrap items-center gap-2 py-3">
+                  <li key={webhook.id} className="py-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 text-sm font-medium">
                         {webhook.nombre}
@@ -248,6 +292,26 @@ export function WebhooksPanel({
                         Probar
                       </Button>
                       <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1.5"
+                        onClick={() => void verHistorial(webhook.id)}
+                        aria-expanded={historialAbierto === webhook.id}
+                        aria-label={`Historial de entregas de ${webhook.nombre}`}
+                      >
+                        {cargandoHistorial === webhook.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <History className="size-3.5" />
+                        )}
+                        Historial
+                        {historialAbierto === webhook.id ? (
+                          <ChevronUp className="size-3.5" />
+                        ) : (
+                          <ChevronDown className="size-3.5" />
+                        )}
+                      </Button>
+                      <Button
                         size="icon-sm"
                         variant="ghost"
                         onClick={() => void alternar(webhook)}
@@ -268,6 +332,50 @@ export function WebhooksPanel({
                         <Trash2 />
                       </Button>
                     </div>
+                  </div>
+
+                  {historialAbierto === webhook.id && (
+                    <div className="mt-3 rounded-lg border border-border/60 bg-surface/40 p-3">
+                      {cargandoHistorial === webhook.id ? (
+                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="size-3.5 animate-spin" />
+                          Cargando historial…
+                        </p>
+                      ) : (historial[webhook.id]?.length ?? 0) === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          Todavía no hay entregas. Pulsa «Probar» para generar la primera.
+                        </p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {historial[webhook.id]!.map((entrega) => (
+                            <li key={entrega.id} className="flex flex-wrap items-center gap-2 text-xs">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "shrink-0 font-mono text-[10px]",
+                                  entrega.ok
+                                    ? "border-emerald-500/30 text-emerald-300"
+                                    : "border-red-500/30 text-red-300",
+                                )}
+                              >
+                                {entrega.estado ?? "sin respuesta"}
+                              </Badge>
+                              <span className="shrink-0 text-muted-foreground">{entrega.evento}</span>
+                              {entrega.latenciaMs !== null && (
+                                <span className="shrink-0 text-muted-foreground">{entrega.latenciaMs} ms</span>
+                              )}
+                              <span className="shrink-0 text-muted-foreground">{formatRelativeTime(entrega.fecha)}</span>
+                              {entrega.error && (
+                                <span className="min-w-0 truncate text-amber-300" title={entrega.error}>
+                                  {entrega.error}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                   </li>
                 ))}
               </ul>

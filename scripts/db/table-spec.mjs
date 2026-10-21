@@ -603,6 +603,19 @@ export const TABLES = [
     ],
     indexes: [["userId"]],
   },
+  {
+    name: "WebhookEntrega",
+    columns: [
+      { name: "id", type: "text", pk: true },
+      { name: "webhookId", type: "text", references: { table: "Webhook", onDelete: "Cascade" } },
+      { name: "evento", type: "text" },
+      { name: "estado", type: "int", nullable: true },
+      { name: "latenciaMs", type: "int", nullable: true },
+      { name: "error", type: "text", nullable: true },
+      { name: "createdAt", type: "datetime", default: now },
+    ],
+    indexes: [["webhookId", "createdAt"]],
+  },
 ];
 
 /** Nombres de índice/constraint siguiendo las convenciones de Prisma. */
