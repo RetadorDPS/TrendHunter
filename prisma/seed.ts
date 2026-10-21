@@ -84,6 +84,8 @@ async function crearUsuarios() {
       stripeCustomerId: "cus_demo_admin",
       stripeSubscriptionId: "sub_demo_admin",
       planRenewsAt: enD30Dias(),
+      onboardingCompletadoEn: haceDias(40),
+      onboardingNicho: "Mascotas",
     },
   });
 
@@ -102,6 +104,8 @@ async function crearUsuarios() {
       stripePriceId: process.env.STRIPE_PRICE_PRO ?? "price_demo_pro",
       planRenewsAt: enD30Dias(),
       lastLoginAt: haceHoras(3),
+      onboardingCompletadoEn: haceDias(25),
+      onboardingNicho: "Hogar",
     },
   });
 
@@ -115,6 +119,8 @@ async function crearUsuarios() {
       emailVerified: new Date(),
       quotaDayKey: hoy(),
       lastLoginAt: haceHoras(30),
+      onboardingCompletadoEn: haceDias(10),
+      onboardingNicho: "Tecnología",
     },
   });
 
@@ -135,6 +141,7 @@ async function crearUsuarios() {
           emailVerified: new Date(),
           createdAt: haceDias(20 - indice * 3),
           lastLoginAt: haceHoras(indice * 7 + 2),
+          onboardingCompletadoEn: haceDias(18 - indice * 3),
         },
       }),
     ),

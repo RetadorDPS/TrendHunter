@@ -220,6 +220,12 @@ model User {
   quotaDayKey    String?
   quotaUsedToday Int       @default(0)
   lastLoginAt    DateTime?
+  // Onboarding de 3 pasos (nicho, seguir tiendas, avisos): se muestra una sola
+  // vez en el primer acceso al panel. `null` en los dos últimos = todavía no
+  // se ha visto; uno de los dos se rellena al terminarlo o saltarlo.
+  onboardingNicho        String?
+  onboardingCompletadoEn DateTime?
+  onboardingSaltadoEn    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

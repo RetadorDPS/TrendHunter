@@ -42,6 +42,7 @@
     "verify:pwa": "node scripts/verificar-pwa.mjs",
     "verify:stripe-webhook": "tsx scripts/verificar-stripe-webhook.mts",
     "verify:webhooks-historial": "tsx scripts/verificar-webhooks-historial.mts",
+    "verify:onboarding": "tsx scripts/verificar-onboarding.mts",
     "worker": "tsx scripts/worker.ts"
   },
   "prisma": {

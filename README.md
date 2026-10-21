@@ -46,6 +46,7 @@ las creatividades de tu campaña con IA.
 | 15 | Equipos y asientos | `/dashboard/equipos`, `/equipos/aceptar` | Business 5 plazas y Agency 15: invitar por correo, roles OWNER/ADMIN/MEMBER, heredar el plan del equipo, revocar accesos y comprar asientos extra (facturación por `quantity` en Stripe) |
 | 16 | Webhooks salientes | `/dashboard/settings/notifications` | Avisos a Slack, Discord o cualquier automatización (n8n, Make, Zapier), con firma HMAC, prueba de entrega e historial de las últimas 50 entregas (código, latencia, motivo del fallo) |
 | 13 | PWA y avisos push | `/manifest.webmanifest`, `/dashboard/settings/notifications` | Instalable en Android, iPhone y escritorio; service worker con caché de estáticos y pantalla sin conexión; alertas al móvil con VAPID por `web-push` |
+| 17 | Onboarding | `/dashboard` (diálogo, sin ruta propia) | 3 pasos saltables en el primer acceso: elegir nicho, seguir hasta 3 tiendas (respetando el límite real del plan) y activar avisos con el panel de push real |
 
 ---
 
@@ -130,6 +131,7 @@ Genera un secreto de producción con `openssl rand -base64 32`.
 | `npm run confianza:recalcular` | Recalcula el nivel de confianza de todos los productos |
 | `npm run verify:equipos` | 42 comprobaciones de equipos, asientos (incluida la compra de asientos extra), invitaciones, webhooks y su historial de entregas |
 | `npm run verify:webhooks-historial` | 3 comprobaciones de que el historial de entregas se recorta a 50 por webhook (no crece sin límite) |
+| `npm run verify:onboarding` | 12 comprobaciones del onboarding de 3 pasos (aparece, nicho, límite real del plan al seguir tiendas, saltar, no repetirse) |
 | `npm run chromium` | Prepara el Chromium local que usan las capturas y las verificaciones |
 | `npm run build:pages` | Exporta el sitio estático para GitHub Pages a `docs/` |
 | `npm run preview:pages` | Sirve `docs/` igual que GitHub Pages (`http://localhost:4000/OmegaHub/`) |
@@ -218,6 +220,7 @@ Todas las rutas devuelven JSON y exigen sesión salvo las públicas indicadas.
 | `POST` | `/api/auth/reset-password` | Cambio de contraseña con token |
 | `GET` | `/api/auth/verify-email?token=` | Verificación de correo |
 | `PATCH` | `/api/user/profile` \| `/api/user/password` | Perfil y contraseña |
+| `PATCH` | `/api/onboarding` | Onboarding de 3 pasos: nicho, y marca completado/saltado |
 | `GET` | `/api/products` | Catálogo con filtros, orden y paginación |
 | `GET` | `/api/products/export` | Exportación CSV (UTF-8 con BOM) |
 | `GET/POST/DELETE` | `/api/saved-products` | Favoritos |

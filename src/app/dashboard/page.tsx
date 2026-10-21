@@ -15,14 +15,19 @@ import {
   Users,
 } from "lucide-react";
 import { auth } from "@/auth";
+import prisma from "@/lib/prisma";
 import {
   getAdStats,
   getDashboardStats,
   getGlobalTrendSeries,
   getTopProducts,
+  listStores,
+  listTrackedStores,
   listTrackedStoresTimeline,
 } from "@/lib/dal";
+import { pushConfigurado } from "@/lib/push";
 import { PageHeading } from "@/components/domain/page-heading";
+import { OnboardingModal } from "@/components/domain/onboarding-modal";
 import { StatCard } from "@/components/domain/stat-card";
 import { CategoryBarChart, TrendAreaChart } from "@/components/charts/trend-area-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,18 +58,47 @@ export default async function DashboardPage() {
   const sesion = await auth();
   const usuarioId = sesion?.user?.id ?? "";
 
-  const [stats, serie, destacados, anuncios, timeline] = await Promise.all([
+  const [stats, serie, destacados, anuncios, timeline, onboarding, tiendasCandidatas, tiendasSeguidas] = await Promise.all([
     getDashboardStats(),
     getGlobalTrendSeries(30),
     getTopProducts(4),
     getAdStats(),
     usuarioId ? listTrackedStoresTimeline(usuarioId, 6) : Promise.resolve([]),
+    usuarioId
+      ? prisma.user.findUnique({
+          where: { id: usuarioId },
+          select: { onboardingCompletadoEn: true, onboardingSaltadoEn: true },
+        })
+      : Promise.resolve(null),
+    listStores(8),
+    usuarioId ? listTrackedStores(usuarioId) : Promise.resolve([]),
   ]);
 
   const porSaturacion = (nivel: string) => stats.saturacion.find((fila) => fila.nivel === nivel)?.cantidad ?? 0;
 
+  const idsSeguidos = new Set(tiendasSeguidas.map((tienda) => tienda.id));
+  const mostrarOnboarding = Boolean(
+    usuarioId && onboarding && !onboarding.onboardingCompletadoEn && !onboarding.onboardingSaltadoEn,
+  );
+
   return (
     <>
+      {mostrarOnboarding && (
+        <OnboardingModal
+          mostrar
+          tiendas={tiendasCandidatas
+            .filter((tienda) => !idsSeguidos.has(tienda.id))
+            .map((tienda) => ({
+              id: tienda.id,
+              name: tienda.name,
+              domain: tienda.domain,
+              niche: tienda.niche,
+              estimatedMonthlyRevenue: tienda.estimatedMonthlyRevenue,
+            }))}
+          pushConfigurado={pushConfigurado()}
+          clavePublicaPush={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+        />
+      )}
       <PageHeading
         title={`${saludo()}, ${sesion?.user?.name?.split(" ")[0] ?? "de nuevo"}`}
         description="Esto es lo que está pasando ahora mismo en el mercado de dropshipping: oportunidades, saturación y movimientos de tus competidores."

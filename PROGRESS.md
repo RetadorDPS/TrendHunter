@@ -673,6 +673,48 @@ leer el historial ajeno (404). `npm run verify:webhooks-historial` (nuevo,
 con las más recientes, mientras los contadores (`envios`+`fallos`) siguen
 sumando las 55 de verdad.
 
+## Mejora 9 · Onboarding de 3 pasos (✅)
+
+No existía un primer recorrido guiado: quien se registraba llegaba a un panel
+vacío sin saber qué hacer primero. Ahora hay 3 pasos saltables, en un diálogo
+sobre el panel general (sin ruta ni pantalla nueva).
+
+### Los 3 pasos (todos reales, ninguno decorativo)
+1. **Elegir nicho**: una de las 6 categorías del catálogo. Se guarda en
+   `User.onboardingNicho`.
+2. **Seguir hasta 3 tiendas**: usa el mismo `POST /api/trackers/stores` que
+   Store Tracker. Si el plan tiene menos cupo (FREE permite 2), se siguen las
+   que caben y se avisa del motivo exacto de las demás — nunca se inventa
+   cupo de más.
+3. **Activar avisos**: es el `PushPanel` real de `/dashboard/settings/
+   notifications` (mismo componente, no una copia): pide permiso al
+   navegador y se suscribe de verdad si hay claves VAPID; sin ellas, lo dice
+   igual que en Notificaciones.
+
+### Cómo se mide y se salta
+- `User.onboardingCompletadoEn` / `onboardingSaltadoEn` (ambos `null` hasta
+  que se ve una vez): da tasa de finalización real, no solo "se mostró".
+- Botón «Saltar» visible en los 3 pasos; marca `onboardingSaltadoEn` al
+  momento, sin arrastrar al resto del flujo.
+- Las cuentas del seed (admin, demo, free y las de relleno) llevan
+  `onboardingCompletadoEn` desde que se crean: son cuentas ya establecidas,
+  no deben ver un onboarding de alta.
+
+### Dónde está
+`PATCH /api/onboarding` · `src/components/domain/onboarding-modal.tsx` ·
+se monta desde `src/app/dashboard/page.tsx` cuando ninguno de los dos campos
+está relleno.
+
+### Verificación
+`npm run verify:onboarding` (nuevo, 12/12): aparece en el primer acceso,
+guarda el nicho, respeta el límite real del plan FREE (2) aunque se marquen
+3 tiendas, muestra el panel de push real en el paso 3, terminar marca
+completado y no vuelve a aparecer tras recargar, saltar en el paso 1 marca
+saltado sin seguir ninguna tienda, y una cuenta ya onboardeada (admin del
+seed) no ve el diálogo. `npm run audit:ui` sigue en 0 errores (las cuentas
+que usa ya están onboardeadas, así que no interfiere con la navegación
+automática).
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con
