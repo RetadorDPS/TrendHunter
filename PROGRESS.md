@@ -835,6 +835,38 @@ forma fiable); el servidor ya sirve imágenes con `next/image`
 (dimensionadas, con `sizes`) y el panel no carga JS de más por ruta
 (Next 16 con App Router divide el bundle por página).
 
+## Mejora 13 · Test e2e del flujo de dinero (✅)
+
+Último punto pendiente de la lista de producto: probar de punta a punta,
+por la interfaz real (no llamadas directas a la API), el camino completo
+que sigue dinero de verdad: **registro → plan de pago → equipo → invitar
+→ aceptar → webhook → probar → cancelar**.
+
+### Qué prueba `npm run verify:e2e-dinero` (nuevo, 12/12)
+1. Registro real por el formulario (con la casilla de términos, que si no
+   se marca bloquea el envío — así se descubrió que no es decorativa).
+2. La sesión queda iniciada automáticamente tras registrarse.
+3. `/pricing` → «Pasar a Business» activa el plan (modo demostración sin
+   claves de Stripe) y se confirma en Facturación.
+4. Se crea un equipo real y se invita a un segundo correo.
+5. Una segunda cuenta, registrada también de verdad, acepta la invitación
+   desde el enlace real y **hereda el plan Business sin pagar otra vez**.
+6. Se crea un webhook real, se prueba y la entrega queda en el historial
+   (la pieza de la Mejora 8) con su código y latencia reales.
+7. Cancelar la suscripción cierra el ciclo: vuelve a Free de verdad.
+
+Las dos cuentas y todo lo que crean (equipo, invitación, webhook,
+suscripción) se borran al terminar, falle o no el test.
+
+### Verificación
+`npm run verify:e2e-dinero`: 12/12. Resto de la batería sin regresiones:
+npm test 172/172, typecheck y lint sin avisos, db:verify sin drift (31
+modelos), verify:equipos 42/42, verify:api 42/42, verify:api-v1 23/23,
+verify:buscador 9/9, verify:ingesta 45/45, verify:confianza 15/15,
+verify:pwa 18/18, verify:onboarding 12/12, verify:informes-compartidos
+10/10, verify:accesibilidad 18/18, audit:ui 0 errores, build:pages +
+verify:pages 60/60.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

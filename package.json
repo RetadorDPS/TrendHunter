@@ -46,6 +46,7 @@
     "verify:informes-compartidos": "tsx scripts/verificar-informes-compartidos.mts",
     "verify:buscador": "node scripts/verificar-buscador.mjs",
     "verify:accesibilidad": "node scripts/verificar-accesibilidad.mjs",
+    "verify:e2e-dinero": "tsx scripts/verificar-e2e-dinero.mts",
     "worker": "tsx scripts/worker.ts"
   },
   "prisma": {
