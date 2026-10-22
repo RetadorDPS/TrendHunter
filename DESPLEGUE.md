@@ -356,6 +356,30 @@ exactamente el JSON que lee el sistema.
 - Semanal, adicional: GitHub Action que ejecuta
   `DIRECT_URL=… npm run respaldo` (volcado `pg_dump`
   en artifacts, retiene 14).
+- `npm run respaldo` sin `DIRECT_URL` de Postgres falla con un mensaje
+  claro (`[respaldo] Se necesita DIRECT_URL de Supabase`), no un error
+  críptico ni un volcado vacío.
+
+### Restaurar un volcado (pruébalo antes de necesitarlo de verdad)
+
+```bash
+# 1 · Apunta a una base vacía de prueba (NUNCA a la de producción a ciegas).
+psql "$DIRECT_URL_DE_PRUEBA" -f respaldos/trendhunter-AAAA-MM-DD-HHmm.sql
+
+# 2 · Comprueba que cuadra con el esquema actual.
+DATABASE_URL="$DIRECT_URL_DE_PRUEBA" npm run db:verify
+
+# 3 · Arranca contra esa base y entra con una cuenta del seed para
+#    confirmar que los datos están de verdad, no solo las tablas vacías.
+DATABASE_URL="$DIRECT_URL_DE_PRUEBA" npm start
+```
+
+Sin un proyecto de Supabase real no se puede ejecutar este paso en este
+entorno (hace falta `DIRECT_URL` y `pg_dump`/`psql` contra una base
+Postgres de verdad): el código y el procedimiento están listos y
+probados en seco (el script falla honestamente sin la credencial, como
+debe), pero la restauración en sí queda pendiente de la primera vez que
+haya un proyecto Supabase conectado.
 
 ## 9 · Antes de celebrar
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { redisConfigured } from "@/lib/queue";
 import { modoCostes } from "@/lib/modoCostes";
+import { pushConfigurado } from "@/lib/push";
 
 /** Marca de tiempo del arranque del proceso (para el uptime). */
 const ARRANQUE = Date.now();
@@ -41,6 +42,8 @@ export async function GET() {
         stripe: Boolean(process.env.STRIPE_SECRET_KEY),
         smtp: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER),
         google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+        push: pushConfigurado(),
+        asientosExtra: Boolean(process.env.STRIPE_PRICE_SEAT_BUSINESS || process.env.STRIPE_PRICE_SEAT_AGENCY),
         scrapingReal: Boolean(
           process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || process.env.CHROMIUM_PATH || process.env.SCRAPING_REAL === "true",
         ),

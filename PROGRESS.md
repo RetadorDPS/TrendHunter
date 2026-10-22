@@ -867,6 +867,34 @@ verify:pwa 18/18, verify:onboarding 12/12, verify:informes-compartidos
 10/10, verify:accesibilidad 18/18, audit:ui 0 errores, build:pages +
 verify:pages 60/60.
 
+## Revisión final · producción y observabilidad (4.8)
+
+Repaso de lo que el encargo pedía comprobar antes de darlo por cerrado:
+
+- **`/api/health`** ahora también informa de `push` (claves VAPID) y
+  `asientosExtra` (precios de Stripe para la Mejora 6), además de lo que ya
+  tenía (base de datos, Redis, IA, Stripe, SMTP, Google, scraping real):
+  cualquier monitor externo ve de un vistazo qué integración falta, sin
+  entrar al servidor.
+- **`CRON_SECRET`**: los 3 workflows (`alertas.yml`, `captura-diaria.yml`,
+  `ingesta.yml`) mandan la misma cabecera `x-cron-secret` que valida
+  `src/lib/cronAuth.ts` contra `process.env.CRON_SECRET` (o una sesión de
+  administrador para pruebas manuales): coinciden, sin que hiciera falta
+  tocar nada.
+- **Restauración de backup**: `npm run respaldo` ya fallaba honestamente sin
+  `DIRECT_URL` (nunca un volcado vacío ni un error críptico); lo que faltaba
+  era el procedimiento de restaurar, documentado ahora en `DESPLEGUE.md` §8
+  (`psql` contra una base de prueba, `db:verify` para confirmar el esquema,
+  arrancar y entrar con una cuenta del seed). **No se ha podido ejecutar de
+  verdad** en este entorno: hace falta un proyecto Supabase real
+  (`DIRECT_URL` + `pg_dump`/`psql`), que no existe aquí. Queda listo para la
+  primera vez que haya uno conectado.
+- **Credenciales externas** (correo, push, IA, scraping, colas, Google
+  OAuth, APIs de pago): revisadas una por una en el código — todas ya
+  degradan con honestidad (sin inventar datos ni simular en silencio) y lo
+  dicen en la interfaz donde corresponde. No ha hecho falta tocar nada ahí:
+  ya estaba bien hecho de rondas anteriores.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con
