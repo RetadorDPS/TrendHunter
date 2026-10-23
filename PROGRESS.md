@@ -942,6 +942,35 @@ dominio de ejemplo para confirmar que deja de usar `localhost` en todas
 las rutas. `npm run build` y `npm run build:pages` siguen pasando enteros
 con las tres rutas nuevas añadidas.
 
+### Corrección adicional · el login de la copia de demostración mentía
+
+Al verificar `npm run build:pages` a fondo se encontró un fallo real (ya
+existía antes de esta ronda, no lo causó la Mejora 14): en la copia
+estática de GitHub Pages, escribir exactamente una de las cuentas de
+demostración que la propia pantalla sugiere («demo@trendhunter.pro» /
+«demo1234», etc.) hacía fallar el login con «Correo o contraseña
+incorrectos» — un mensaje falso, porque la contraseña tecleada era
+correcta. La causa: `signIn("credentials", …)` necesita un backend real
+que la exportación estática no tiene.
+
+Arreglado en `scripts/build-pages.mjs` (solo afecta a la copia estática,
+el formulario real en `src/components/auth/login-form.tsx` no se tocó):
+como la sesión del panel ya es fija y `/dashboard` se puede visitar sin
+iniciar sesión, al enviar el formulario se compara lo escrito con las
+cuentas de demostración ya visibles en pantalla — si coincide, entra de
+verdad; si no, ahora dice la verdad («la versión estática no puede
+comprobar contraseñas reales») en vez de acusar al usuario de
+equivocarse.
+
+**Verificación**: `BASE_URL=http://localhost:4000/TrendHunter npm run
+verify:pages` — el login con la cuenta de administrador pasó de fallar
+siempre a entrar correctamente (`LOGIN admin@trendhunter.pro` ✅). Las
+demás comprobaciones que siguen en rojo en esa batería (las llamadas a
+`/api/*` devolviendo 501 y `/dashboard/admin` visible para cualquier
+perfil) son el comportamiento ya esperado y documentado de la copia
+estática — no hay backend ni perfiles reales en GitHub Pages — y quedan
+fuera del alcance de esta corrección.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

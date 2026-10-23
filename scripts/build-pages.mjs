@@ -353,6 +353,42 @@ parchear(
   "aviso de versión estática",
 );
 
+// El formulario de login llama a signIn("credentials", …), que necesita el
+// backend real (cookies de sesión, verificación de contraseña). El intercepto
+// de peticiones ya avisa con honestidad en el resto de la app («esta acción
+// necesita el servidor»), pero aquí el mensaje por defecto decía «correo o
+// contraseña incorrectos» incluso tecleando bien una de las cuentas de
+// demostración que la propia pantalla sugiere — eso sí sería un dato falso.
+// Como la sesión ya está fija (ver auth.ts) y /dashboard es visitable sin
+// iniciar sesión, aquí se reconoce la cuenta de demostración tecleada (las
+// mismas que ya se muestran en pantalla, nada nuevo) y se navega directo; con
+// cualquier otro correo se explica la limitación real en vez de mentir.
+console.log("[build:pages] 4c/6 · Adaptando el formulario de login a la sesión fija…");
+parchear(
+  "src/components/auth/login-form.tsx",
+  `    const resultado = await signIn("credentials", { email, password, redirect: false });
+
+    if (resultado?.error) {
+      setError("Correo o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.");
+      setCargando(false);
+      return;
+    }
+    router.push(callbackUrl);
+    router.refresh();`,
+  `    // Sitio estático: no hay backend que verifique contraseñas. Si son
+    // exactamente una de las cuentas de demostración de arriba, se entra
+    // (la sesión real del panel ya es fija); si no, se explica por qué.
+    const cuentaValida = CUENTAS_DEMO.some((cuenta) => cuenta.email === email && cuenta.password === password);
+    if (!cuentaValida) {
+      setError("La versión estática no puede comprobar contraseñas reales. Usa una de las cuentas de demostración de abajo.");
+      setCargando(false);
+      return;
+    }
+    router.push(callbackUrl);
+    router.refresh();`,
+  "login sin backend en el sitio estático",
+);
+
 console.log("[build:pages] 5/6 · Compilando la exportación estática…");
 execFileSync("npx", ["next", "build"], {
   cwd: TRABAJO,
