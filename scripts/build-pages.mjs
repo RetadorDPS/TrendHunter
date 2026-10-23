@@ -106,6 +106,34 @@ rmSync(path.join(TRABAJO, "src", "proxy.ts"), { force: true });
 // hay nada que pre-renderizar ni servidor que los resuelva en GitHub Pages.
 rmSync(path.join(TRABAJO, "src", "app", "informe"), { recursive: true, force: true });
 
+// Esta copia tiene datos de ejemplo y sesión fija: no debe indexarse ni
+// competir en buscadores con el sitio real una vez desplegado con
+// credenciales propias. Se marca como no indexable por partida doble
+// (robots.txt y la etiqueta <meta name="robots">) para que valga tanto
+// para los rastreadores que solo miran una de las dos señales.
+writeFileSync(
+  path.join(TRABAJO, "src", "app", "robots.ts"),
+  `import type { MetadataRoute } from "next";
+
+export const dynamic = "force-static";
+
+/** Copia de demostración: nunca debe indexarse. */
+export default function robots(): MetadataRoute.Robots {
+  return { rules: { userAgent: "*", disallow: "/" } };
+}
+`,
+);
+parchear(
+  "src/app/layout.tsx",
+  "robots: { index: true, follow: true },",
+  "robots: { index: false, follow: false },",
+  "noindex para la copia de demostración",
+);
+// Un sitemap no tiene sentido en una copia que robots.txt ya bloquea entera,
+// y generarlo igualmente apuntaría a http://localhost:3000 (no hay dominio
+// público real en este build).
+rmSync(path.join(TRABAJO, "src", "app", "sitemap.ts"), { force: true });
+
 writeFileSync(
   path.join(TRABAJO, "src", "auth.ts"),
   `/**

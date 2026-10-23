@@ -40,6 +40,7 @@
     "verify:ingesta": "tsx scripts/verificar-ingesta.mts",
     "verify:pages": "node scripts/verify-pages.mjs",
     "verify:pwa": "node scripts/verificar-pwa.mjs",
+    "verify:seo": "node scripts/verificar-seo.mjs",
     "verify:stripe-webhook": "tsx scripts/verificar-stripe-webhook.mts",
     "verify:webhooks-historial": "tsx scripts/verificar-webhooks-historial.mts",
     "verify:onboarding": "tsx scripts/verificar-onboarding.mts",

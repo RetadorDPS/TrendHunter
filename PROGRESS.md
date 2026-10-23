@@ -895,6 +895,53 @@ Repaso de lo que el encargo pedía comprobar antes de darlo por cerrado:
   dicen en la interfaz donde corresponde. No ha hecho falta tocar nada ahí:
   ya estaba bien hecho de rondas anteriores.
 
+## Mejora 14 · SEO real para poder conseguir usuarios (✅)
+
+La app ya funcionaba de punta a punta, pero no tenía nada de lo que hace
+falta para que alguien la encuentre por Google o para que un enlace
+compartido en WhatsApp/Slack/Twitter se vea bien. Sin esto, «generar
+dinero de verdad» depende solo de tráfico que alguien traiga a mano.
+
+### Qué se ha construido
+
+- **`src/app/robots.ts`** — genera `/robots.txt`. Permite la raíz y bloquea
+  explícitamente lo que no debe indexarse: el panel (`/dashboard`), la API
+  (`/api`), y las dos rutas con token en la URL (`/equipos/aceptar`,
+  `/informe/[token]`) — bloquearlas no es solo SEO, evita que un buscador
+  indexe (y filtre) un token de invitación o de informe compartido.
+- **`src/app/sitemap.ts`** — genera `/sitemap.xml` con solo las páginas
+  públicas reales: portada, precios, registro, login, recuperar
+  contraseña. Nunca incluye el panel (exige sesión, no aporta nada
+  indexado).
+- **`src/app/opengraph-image.tsx`** — genera en el build una imagen
+  1200×630 real con `next/og` (texto y colores de marca, nada de foto de
+  archivo ni dato inventado) para que el enlace se vea bien al compartirlo.
+- **`src/app/layout.tsx`** — `metadataBase`, `alternates.canonical` y
+  `openGraph.url` resueltos con el mismo `urlApp()` que ya usaban los
+  correos y los webhooks de Stripe (`src/lib/app-url.ts`), así que no hace
+  falta ninguna variable nueva.
+
+### Importante para producción
+
+`NEXT_PUBLIC_APP_URL` (ya documentada en `.env.example`) debe estar puesta
+**antes de `npm run build`**, no solo al arrancar: como toda variable
+`NEXT_PUBLIC_*`, Next la incrusta en el build, y `robots.txt`/`sitemap.xml`/
+el `og:image` se generan como páginas estáticas en ese momento. Mientras no
+se configure, caen a `http://localhost:3000` sin romper nada (ver
+`src/lib/app-url.ts`), pero el sitemap y las vistas previas compartidas no
+apuntarán al dominio real hasta que se construya con la variable puesta.
+
+### Verificación
+
+`npm run verify:seo` (nuevo, 12/12): `robots.txt` responde y bloquea lo
+correcto, `sitemap.xml` es válido y solo lista páginas públicas, la
+portada trae `canonical`/`og:title`/`og:description`/`og:url`, y la
+`og:image` se descarga de verdad y es un PNG válido (no un enlace roto).
+Probado también reconstruyendo con `NEXT_PUBLIC_APP_URL` apuntando a un
+dominio de ejemplo para confirmar que deja de usar `localhost` en todas
+las rutas. `npm run build` y `npm run build:pages` siguen pasando enteros
+con las tres rutas nuevas añadidas.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con

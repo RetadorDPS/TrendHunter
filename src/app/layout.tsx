@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { RegistrarServiceWorker } from "@/components/pwa/registrar-sw";
+import { urlApp } from "@/lib/app-url";
 import "./globals.css";
 
 /**
@@ -12,6 +13,7 @@ import "./globals.css";
  */
 
 export const metadata: Metadata = {
+  metadataBase: new URL(urlApp()),
   title: {
     default: "TrendHunter Pro · Inteligencia de productos para e-commerce",
     template: "%s · TrendHunter Pro",
@@ -28,8 +30,10 @@ export const metadata: Metadata = {
     "trend score",
   ],
   authors: [{ name: "TrendHunter Pro" }],
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
+    url: "/",
     locale: "es_ES",
     title: "TrendHunter Pro · Inteligencia de productos y tendencias",
     description:
