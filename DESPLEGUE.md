@@ -350,6 +350,56 @@ npm run verify:ingesta      # 37 comprobaciones, sin red externa
 Abre en el navegador `https://<tienda>/products.json?limit=5` y compara: es
 exactamente el JSON que lee el sistema.
 
+## 7g · Ads Spy: descubrir productos por anuncios reales (gratis)
+
+A diferencia de «Fuentes en vivo» (que verifica tiendas que ya conoces),
+**Ads Spy busca por palabra clave en todos los anunciantes de Meta a la
+vez** — no hace falta saber de antemano qué tienda está vendiendo algo.
+Es gratis: solo hace falta un token de una app de Meta for Developers, sin
+tarjeta ni revisión larga para el uso de biblioteca de anuncios estándar.
+
+### Cómo sacar el token
+
+1. Entra a **developers.facebook.com** → inicia sesión con tu cuenta de
+   Facebook → **Mis apps** → **Crear app**.
+2. Tipo de app: **Otro** → **Empresa** (o la opción más genérica que te
+   ofrezca) → ponle un nombre, por ejemplo `TrendHunter`.
+3. Dentro de la app, ve a **Herramientas** → **Explorador de la API Graph**
+   (Graph API Explorer).
+4. En el selector de la app (arriba), confirma que está seleccionada tu
+   app nueva. Genera un **token de acceso de usuario** (User Access
+   Token) con el botón correspondiente.
+5. Copia ese token — es el valor de `FACEBOOK_ACCESS_TOKEN`.
+
+> Los tokens de usuario caducan (normalmente a las pocas horas). Para uso
+> continuo en producción, cambia el token corto por uno de larga duración
+> (~60 días) desde el mismo Explorador de la API Graph (botón «Extender
+> token de acceso») o genera un token de sistema desde **Business
+> Settings → System Users** si tienes una cuenta de Business de Meta.
+
+### Cómo se usa desde la aplicación
+
+1. Entra con tu cuenta y abre **Ads Spy** (menú lateral).
+2. En «Buscar anuncios reales», escribe un producto, marca o nicho (por
+   ejemplo `masajeador`) y elige el país.
+3. Se guardan los anuncios **activos ahora mismo** para ese término, con
+   anunciante real, texto real, plataformas reales y enlace directo a la
+   Biblioteca de Anuncios de Meta para comprobarlo tú mismo.
+
+### Garantía (lo que hace que el dato sea de fiar)
+
+Meta **no publica** me gusta, comentarios, compartidos ni vistas para
+anuncios normales (solo lo hace para anuncios de temas sociales o
+políticos, con requisitos adicionales de verificación). Este sistema
+nunca rellena esos números: se quedan en 0 y la interfaz lo explica en
+vez de simular una métrica de interacción.
+
+### Comprobarlo tú mismo
+
+```bash
+npm run verify:ads-meta     # 15 comprobaciones, sin red externa
+```
+
 ## 8 · Respaldos
 
 - Supabase free incluye respaldo diario (7 días).

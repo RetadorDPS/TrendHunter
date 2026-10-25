@@ -473,12 +473,20 @@ model Ad {
   firstSeenAt    DateTime   @default(now())
   lastSeenAt     DateTime   @default(now())
   createdAt      DateTime   @default(now())
+  /// "seed" (ejemplo) o "meta-ad-library" (anuncio real leído de Meta Ad
+  /// Library). Los anuncios reales no traen likes/comments/shares/views: Meta
+  /// no los expone para anuncios normales, así que esos campos se quedan en
+  /// su valor por defecto (0) y la interfaz no debe presentarlos como medidos.
+  origen         String     @default("seed")
+  /// ID del anuncio en Meta Ad Library, para no duplicar en relecturas.
+  externalId     String?
 
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([platform])
   @@index([nicheTag])
   @@index([daysActive])
+  @@index([externalId])
 }
 
 // ---------------------------------------------------------------------------

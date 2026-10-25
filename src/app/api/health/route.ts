@@ -39,6 +39,7 @@ export async function GET() {
       integraciones: {
         redis: redisConfigured(),
         ia: Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+        metaAdLibrary: Boolean(process.env.FACEBOOK_ACCESS_TOKEN),
         stripe: Boolean(process.env.STRIPE_SECRET_KEY),
         smtp: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER),
         google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),

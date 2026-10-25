@@ -58,6 +58,14 @@ export function AdCard({ ad, index = 0, priority = false, saved = false, classNa
 
   const engagement =
     ad.views > 0 ? ((ad.likes + ad.comments + ad.shares) / ad.views) * 100 : ad.engagementRate;
+  /**
+   * Meta Ad Library no expone likes/comments/shares/vistas para anuncios
+   * normales (solo para los de temas sociales/políticos): mostrar esa fila
+   * en "0" para un anuncio real sería presentar como medido algo que no lo
+   * es. Para estos anuncios se usa una tarjeta más simple, sin imagen
+   * inventada ni métricas que Meta nunca dio.
+   */
+  const esAnuncioReal = ad.origen === "meta-ad-library";
 
   /** Guarda el producto relacionado en favoritos. */
   async function guardarProducto() {
@@ -85,6 +93,54 @@ export function AdCard({ ad, index = 0, priority = false, saved = false, classNa
     } finally {
       setGuardando(false);
     }
+  }
+
+  if (esAnuncioReal) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: Math.min(index * 0.035, 0.5) }}
+        className={cn("mb-5 break-inside-avoid", className)}
+      >
+        <Card className="overflow-hidden p-4 transition-shadow hover:border-indigo-500/40 hover:shadow-xl hover:shadow-indigo-950/30">
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <Badge className={cn("border", PLATFORM_STYLES[ad.platform] ?? PLATFORM_STYLES.FACEBOOK)}>
+              {PLATFORM_LABELS[ad.platform]}
+            </Badge>
+            <Badge variant="muted" className="gap-1">
+              <Clock className="size-3" />
+              {ad.daysActive} {ad.daysActive === 1 ? "día activo" : "días activo"}
+            </Badge>
+          </div>
+
+          <p className="text-xs font-semibold text-slate-100">{ad.advertiserName}</p>
+          <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-slate-100">{ad.headline}</h3>
+          {ad.body && <p className="mt-1 line-clamp-4 text-xs leading-relaxed text-muted-foreground">{ad.body}</p>}
+
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Detectado <RelativeTime value={ad.firstSeenAt} /> · {ad.countryTargets.map((c) => COUNTRY_FLAGS[c] ?? c).join(" ")}
+            {" · "}
+            {ad.nicheTag}
+          </p>
+
+          <p className="mt-2 rounded-lg border border-border/60 bg-surface/50 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+            Meta no publica me gusta, comentarios ni vistas para anuncios normales (solo lo hace para
+            anuncios de temas sociales o políticos) — por eso no se muestran aquí: inventar esos números
+            sería mentir sobre el dato.
+          </p>
+
+          {ad.adLibraryUrl && (
+            <Button asChild size="sm" variant="outline" className="mt-3 w-full gap-1.5">
+              <a href={ad.adLibraryUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="size-3.5" />
+                Ver el anuncio real en Meta Ad Library
+              </a>
+            </Button>
+          )}
+        </Card>
+      </motion.div>
+    );
   }
 
   return (

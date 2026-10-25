@@ -138,6 +138,7 @@ export function toAdDTO(anuncio: AdRow): AdDTO {
     engagementRate: anuncio.engagementRate,
     isActive: anuncio.isActive,
     firstSeenAt: anuncio.firstSeenAt.toISOString(),
+    origen: anuncio.origen,
   };
 }
 

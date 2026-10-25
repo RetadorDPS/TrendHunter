@@ -38,6 +38,7 @@
     "verify:confianza": "node scripts/verificar-confianza.mjs",
     "verify:equipos": "node scripts/verificar-equipos.mjs",
     "verify:ingesta": "tsx scripts/verificar-ingesta.mts",
+    "verify:ads-meta": "tsx scripts/verificar-ads-meta.mts",
     "verify:pages": "node scripts/verify-pages.mjs",
     "verify:pwa": "node scripts/verificar-pwa.mjs",
     "verify:seo": "node scripts/verificar-seo.mjs",

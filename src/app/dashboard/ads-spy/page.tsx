@@ -10,6 +10,7 @@ import { PageHeading } from "@/components/domain/page-heading";
 import { StatCard } from "@/components/domain/stat-card";
 import { AdCard } from "@/components/domain/ad-card";
 import { AdFiltersBar } from "@/components/domain/ad-filters";
+import { BuscarAnunciosReales } from "@/components/domain/buscar-anuncios-reales";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import type { AdPlatform } from "@/types";
@@ -93,6 +94,10 @@ export default async function AdsSpyPage({ searchParams }: PageProps) {
           accent="emerald"
           hint="Sobre los anuncios filtrados"
         />
+      </div>
+
+      <div className="mb-6">
+        <BuscarAnunciosReales />
       </div>
 
       <AdFiltersBar

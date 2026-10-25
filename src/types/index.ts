@@ -179,6 +179,8 @@ export interface AdDTO {
   engagementRate: number;
   isActive: boolean;
   firstSeenAt: string;
+  /** "seed" (ejemplo) o "meta-ad-library" (anuncio real). */
+  origen: string;
 }
 
 /** Tienda serializada para Shop Analyzer / Store Tracker. */

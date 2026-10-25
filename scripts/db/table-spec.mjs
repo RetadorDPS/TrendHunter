@@ -278,8 +278,10 @@ export const TABLES = [
       { name: "firstSeenAt", type: "datetime", default: now },
       { name: "lastSeenAt", type: "datetime", default: now },
       { name: "createdAt", type: "datetime", default: now },
+      { name: "origen", type: "text", default: { value: "seed" } },
+      { name: "externalId", type: "text", nullable: true },
     ],
-    indexes: [["platform"], ["nicheTag"], ["daysActive"]],
+    indexes: [["platform"], ["nicheTag"], ["daysActive"], ["externalId"]],
   },
 
   // ----------------------------------------------------------------- tiendas

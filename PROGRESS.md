@@ -1004,6 +1004,63 @@ se lee la primera vez (a mano, una sola vez), Vercel Cron la vuelve a leer
 solo todos los días — nuevos productos, cambios de precio y agotados
 quedan registrados sin que nadie tenga que volver a tocar nada.
 
+## Mejora 16 · Ads Spy real: descubrir productos sin conocer ninguna tienda (✅ código, ⏳ credencial)
+
+Al probar la app con una usuaria real surgió la pregunta clave: «¿cómo
+encuentra un usuario un producto ganador sin tener que escribir él mismo
+el nombre de una tienda?». La respuesta honesta fue que no había forma —
+«Fuentes en vivo» **verifica** tiendas que ya conoces, pero no **descubre**
+nada nuevo. Y revisando el código se encontró que `FACEBOOK_ACCESS_TOKEN`
+estaba registrado como proveedor «disponible» en `providers/index.ts`
+pero **sin ninguna implementación real detrás** — Ads Spy solo leía
+anuncios de ejemplo de la base de datos. Se dijo así, con honestidad,
+antes de pedir ninguna clave nueva.
+
+### Qué se ha construido
+
+- **`src/lib/providers/metaAdLibrary.ts`** — cliente real de
+  `graph.facebook.com/ads_archive`: busca anuncios **activos ahora mismo**
+  por palabra clave/marca/nicho en un país, sin necesitar saber de
+  antemano qué tienda los puso. Motivos de fallo explícitos (`sin-clave`,
+  `token-invalido`, `límite`, `red`, `formato`, `parametros`); nunca lanza.
+- **Honestidad del dato, la parte más importante**: Meta no publica me
+  gusta, comentarios, compartidos ni vistas para anuncios normales (solo
+  para los de temas sociales/políticos, con verificación extra). Este
+  proveedor **nunca inventa esos números** — se quedan en 0 y la interfaz
+  lo explica en vez de simular un engagement falso.
+- **`src/lib/adsIngesta.ts`** — guarda los anuncios reales en `Ad`
+  (`origen = "meta-ad-library"`), idempotente por `externalId` (releer no
+  duplica).
+- **`Ad.origen` y `Ad.externalId`** (nuevos campos, reflejados en
+  `prisma/schema.prisma` y `scripts/db/table-spec.mjs`).
+- **`POST /api/ads-spy/buscar`** — sesión obligatoria, 6 búsquedas/hora.
+- **`BuscarAnunciosReales`** — panel nuevo en Ads Spy: escribe un producto
+  y país, sin tocar código ni saber el nombre de ninguna tienda.
+- **`AdCard`** distingue el origen: un anuncio real (`meta-ad-library`) se
+  muestra sin imagen inventada y sin la fila de métricas (que Meta no da),
+  con un aviso explicando por qué, en vez de la tarjeta tipo Pinterest
+  pensada para los anuncios de ejemplo con creatividad.
+- **`/api/health`** añade `metaAdLibrary` a las integraciones.
+
+### Verificación
+
+`npm run verify:ads-meta` (nuevo, 15/15): sin clave falla con honestidad,
+token caducado y límite de peticiones se reconocen por su código de error
+real de Meta, cero resultados es un éxito (no un fallo), un anuncio sin
+nombre de anunciante se descarta (nunca se inventa uno), likes/comments/
+shares/vistas quedan en 0 al guardar, y releer el mismo anuncio actualiza
+en vez de duplicar. Regresión: `tsc` ✔ · `npm run build` ✔ ·
+`verify:api` 42/42 · probado en el navegador (sin errores de consola,
+tarjetas de ejemplo siguen viéndose igual que antes).
+
+### Lo que falta por credencial
+
+`FACEBOOK_ACCESS_TOKEN` — gratis, instrucciones paso a paso en
+`DESPLEGUE.md` §7g (crear una app en developers.facebook.com, sacar un
+token desde el Explorador de la API Graph). Sin él, el panel de Ads Spy
+explica exactamente qué falta en vez de fallar en silencio o mostrar
+datos de ejemplo disfrazados de reales.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con
