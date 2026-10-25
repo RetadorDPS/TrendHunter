@@ -971,6 +971,39 @@ perfil) son el comportamiento ya esperado y documentado de la copia
 estática — no hay backend ni perfiles reales en GitHub Pages — y quedan
 fuera del alcance de esta corrección.
 
+## Mejora 15 · Lectura automática de tiendas sin tocar nada (✅)
+
+La Mejora 3-B ya permitía leer el catálogo real de una tienda Shopify desde
+«Fuentes en vivo», pero había que escribir el dominio a mano cada vez. El
+cron de GitHub Actions que debía repetirlo solo (`ingesta.yml`) necesitaba
+dos secretos (`APP_URL`, `CRON_SECRET`) en la configuración del
+repositorio — un ajuste al que esta sesión no tiene acceso, así que nunca
+llegó a correr automáticamente.
+
+### Qué se ha añadido
+
+- **`vercel.json`** — un cron nativo de Vercel que llama a `GET
+  /api/ingesta` una vez al día (el plan gratuito no permite más
+  frecuencia). Relee las tiendas que ya se estén siguiendo y las
+  tendencias del día, sin que nadie tenga que entrar a la aplicación.
+- **`src/lib/cronAuth.ts`** — además de la cabecera `x-cron-secret`, ahora
+  también acepta `Authorization: Bearer <CRON_SECRET>`, que es la que
+  Vercel Cron manda solo, automáticamente, en cuanto el proyecto tiene una
+  variable de entorno llamada `CRON_SECRET` (ya estaba puesta). Cero
+  configuración manual.
+- `.github/workflows/ingesta.yml` pierde el disparador por horario (nunca
+  llegó a tener los secretos que necesitaba) y se deja solo para lanzarlo
+  a mano desde la pestaña Actions cuando se quiera forzar una lectura
+  inmediata.
+
+### Lo que esto cambia para quien usa la app
+
+Antes: para tener datos reales había que entrar cada vez a «Fuentes en
+vivo» y escribir el dominio de una tienda. Ahora: una vez que una tienda
+se lee la primera vez (a mano, una sola vez), Vercel Cron la vuelve a leer
+solo todos los días — nuevos productos, cambios de precio y agotados
+quedan registrados sin que nadie tenga que volver a tocar nada.
+
 ## Notas de entorno
 - El sandbox borra `node_modules`, `.chromium` y
   `.next` entre turnos: cada ronda empieza con
