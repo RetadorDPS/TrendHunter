@@ -111,11 +111,18 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Panel de filtros */}
-        <ProductFiltersPanel nichos={nichos} filtros={filtros} filtrosActivos={filtrosActivos} />
+        {/* Panel de filtros: en el móvil va DESPUÉS de los resultados (si no, el
+            recuento y el aviso de "sin resultados" quedan escondidos debajo de
+            un panel de filtros largo y nadie los llega a ver). */}
+        <ProductFiltersPanel
+          nichos={nichos}
+          filtros={filtros}
+          filtrosActivos={filtrosActivos}
+          className="order-2 lg:order-1"
+        />
 
         {/* Resultados */}
-        <div className="min-w-0 space-y-4">
+        <div className="order-1 min-w-0 space-y-4 lg:order-2">
           <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-2 text-sm">
               <LayoutGrid className="size-4 text-indigo-400" />

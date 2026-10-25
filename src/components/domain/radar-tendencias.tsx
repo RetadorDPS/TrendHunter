@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Radar, RefreshCw } from "lucide-react";
+import { ExternalLink, Radar, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -84,11 +84,13 @@ export function RadarTendencias({ geo = "ES" }: { geo?: string }) {
                 href={item.url}
                 target="_blank"
                 rel="noreferrer"
+                title="Abre la página de Google Trends con este término (sales de TrendHunter)"
                 className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-surface"
               >
                 <span className="min-w-0 flex-1 truncate">{item.titulo}</span>
-                <span className="shrink-0 font-semibold text-indigo-300 tabular-nums">
-                  {item.busquedas}
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="font-semibold text-indigo-300 tabular-nums">{item.busquedas}</span>
+                  <ExternalLink className="size-3 text-muted-foreground" aria-hidden />
                 </span>
               </a>
             </li>
@@ -97,7 +99,8 @@ export function RadarTendencias({ geo = "ES" }: { geo?: string }) {
       )}
 
       <p className="mt-3 text-[10px] text-muted-foreground">
-        Fuente: RSS oficial de Google Trends · dato medido, sin clave.
+        Fuente: RSS oficial de Google Trends · dato medido, sin clave. Al tocar un término se abre
+        la página de Google Trends en una pestaña nueva, para que compruebes el dato tú mismo.
       </p>
     </div>
   );
