@@ -5,10 +5,14 @@ import { ExternalLink, Radar, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Radar de tendencias del día (Google Trends RSS).
- * Muestra los términos reales que suben hoy en el país
- * elegido: una señal gratuita y medida para encontrar
- * nichos antes que la competencia.
+ * Lo que más se busca HOY en Google en el país elegido (RSS oficial de
+ * Google Trends): deporte, noticias, famosos... lo que sea tendencia, sin
+ * filtrar por tema. NO son sugerencias de producto ni un radar de nichos.
+ *
+ * Su único uso real en la app: si alguna de estas palabras coincide EXACTA
+ * con el título completo de un producto del catálogo, eso sube su sello de
+ * confianza un poco (hay una búsqueda real detrás). La mayoría de los días
+ * no coincide con nada — y eso es lo esperado, no un fallo.
  */
 
 interface Tendencia {
@@ -56,7 +60,7 @@ export function RadarTendencias({ geo = "ES" }: { geo?: string }) {
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Radar className="size-4 text-indigo-400" />
-          Tendencias del día · {geo}
+          Lo más buscado hoy en Google · {geo}
         </h3>
         <Button variant="ghost" size="icon-sm" onClick={() => void cargar()} aria-label="Recargar">
           <RefreshCw className={cargando ? "animate-spin" : ""} />
@@ -99,8 +103,10 @@ export function RadarTendencias({ geo = "ES" }: { geo?: string }) {
       )}
 
       <p className="mt-3 text-[10px] text-muted-foreground">
-        Fuente: RSS oficial de Google Trends · dato medido, sin clave. Al tocar un término se abre
-        la página de Google Trends en una pestaña nueva, para que compruebes el dato tú mismo.
+        Fuente: RSS oficial de Google Trends · lista general del día (deporte, noticias, famosos),
+        no específica de e-commerce. No son productos ni sugerencias: solo sube el sello de
+        confianza de un producto si una de estas palabras coincide exacta con su título. Al tocar
+        un término se abre Google Trends en una pestaña nueva, para que compruebes el dato tú misma.
       </p>
     </div>
   );

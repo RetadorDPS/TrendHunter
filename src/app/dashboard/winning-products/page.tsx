@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Flame, LayoutGrid, PackageSearch, Sparkles } from "lucide-react";
+import { Flame, LayoutGrid, PackageSearch, Radar, Sparkles } from "lucide-react";
 import { auth } from "@/auth";
 import { getNiches, getSavedProductIds, listProducts } from "@/lib/dal";
 import { PageHeading } from "@/components/domain/page-heading";
@@ -86,7 +86,7 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
     <>
       <PageHeading
         title="Winning Products"
-        description="Productos con su procedencia a la vista: Google Trends, TikTok, Meta Ad Library y el radar de tiendas Shopify. El TrendScore resume demanda, velocidad y competencia; el sello indica si está verificado o estimado."
+        description="Catálogo de ejemplo con su procedencia a la vista: el sello indica si cada dato está Verificado con una tienda real, Estimado o Sin datos. El TrendScore resume demanda, velocidad y competencia sobre esos datos."
         actions={
           <>
             <Button asChild variant={filtros.goldenOnly ? "default" : "outline"} size="sm">
@@ -105,21 +105,35 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
         }
       />
 
-      {/* Radar de tendencias: ocupa el ancho completo antes de los filtros. */}
-      <div className="mb-6">
-        <RadarTendencias />
-      </div>
+      {/* Aviso honesto: este catálogo es un ejemplo fijo, no tiendas reales en vivo. */}
+      <Card className="mb-6 flex flex-wrap items-start justify-between gap-3 border-indigo-500/30 bg-indigo-500/5 p-4">
+        <div className="flex items-start gap-2 text-sm">
+          <PackageSearch className="mt-0.5 size-4 shrink-0 text-indigo-400" />
+          <p>
+            <span className="font-medium">Este catálogo es un ejemplo fijo de 20 productos</span>, pensado
+            para que veas cómo funciona el sello de confianza (Verificado / Estimado / Sin datos). No crece
+            solo ni se busca a sí mismo. Para ver tiendas reales de verdad y lo que venden ahora mismo, usa{" "}
+            <span className="font-medium">Store Tracker</span>.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm" className="shrink-0">
+          <Link href="/dashboard/store-tracker">
+            <Radar />
+            Ir a Store Tracker
+          </Link>
+        </Button>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         {/* Panel de filtros: en el móvil va DESPUÉS de los resultados (si no, el
             recuento y el aviso de "sin resultados" quedan escondidos debajo de
-            un panel de filtros largo y nadie los llega a ver). */}
-        <ProductFiltersPanel
-          nichos={nichos}
-          filtros={filtros}
-          filtrosActivos={filtrosActivos}
-          className="order-2 lg:order-1"
-        />
+            un panel de filtros largo y nadie los llega a ver). El radar de
+            tendencias generales va al final: es una señal secundaria para el
+            sello de confianza, no el punto de partida de la búsqueda. */}
+        <div className="order-2 space-y-4 lg:order-1">
+          <ProductFiltersPanel nichos={nichos} filtros={filtros} filtrosActivos={filtrosActivos} />
+          <RadarTendencias />
+        </div>
 
         {/* Resultados */}
         <div className="order-1 min-w-0 space-y-4 lg:order-2">
