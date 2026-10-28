@@ -200,7 +200,7 @@ export default async function DashboardPage() {
               <Sparkles className="size-4 text-violet-400" />
               Oportunidades de hoy
             </CardTitle>
-            <CardDescription>Productos reales vistos hace menos tiempo</CardDescription>
+            <CardDescription>Los más vendidos: más tiendas reales distintas los venden</CardDescription>
           </CardHeader>
           <CardContent className="flex-1 space-y-3">
             {destacados.length === 0 ? (
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
               destacados.map((producto) => (
                 <a
                   key={producto.id}
-                  href={producto.urlProducto ?? `https://${producto.tienda.dominio}`}
+                  href={producto.tiendas[0]?.urlProducto ?? `https://${producto.tiendas[0]?.dominio}`}
                   target="_blank"
                   rel="noreferrer"
                   className="group flex items-center gap-3 rounded-xl border border-border/60 bg-surface/40 p-2.5 transition-colors hover:border-indigo-500/50 hover:bg-surface"
@@ -227,15 +227,20 @@ export default async function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-1 text-sm font-medium group-hover:text-indigo-300">{producto.titulo}</p>
                     <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      {producto.vendedoresReales > 1 && (
+                        <Badge variant="gradient" className="px-1.5 py-0 text-[10px]">
+                          {producto.vendedoresReales} tiendas
+                        </Badge>
+                      )}
                       {producto.nuevo && (
                         <Badge variant="success" className="px-1.5 py-0 text-[10px]">
                           Nuevo
                         </Badge>
                       )}
-                      <span className="truncate">{producto.tienda.dominio}</span>
+                      <span className="truncate">{producto.tiendas[0]?.dominio}</span>
                     </div>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(producto.precio)}</span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(producto.precioMin)}</span>
                 </a>
               ))
             )}

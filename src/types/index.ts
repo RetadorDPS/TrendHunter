@@ -243,6 +243,27 @@ export interface NichoRealDTO {
   productos: number;
 }
 
+/**
+ * Un producto real agrupado entre todas las tiendas reales que lo venden
+ * (mismo título, normalizado). `vendedoresReales` es la única señal de "qué
+ * tan bueno es": a cuántas tiendas reales distintas, dentro del mismo nicho,
+ * hemos leído vendiéndolo. No es un score inventado — es un conteo real que
+ * cualquiera puede comprobar abriendo las tiendas listadas en `tiendas`.
+ */
+export interface ProductoGanadorRealDTO {
+  id: string;
+  titulo: string;
+  imagen: string | null;
+  precioMin: number;
+  precioMax: number;
+  moneda: string;
+  vendedoresReales: number;
+  tiendas: Array<{ nombre: string; dominio: string; precio: number; urlProducto: string | null }>;
+  nicho: string;
+  vistoUltimaVez: string;
+  nuevo: boolean;
+}
+
 /** Resultado del análisis de una tienda (Shop Analyzer). */
 export interface StoreAnalysisResult {
   store: StoreDTO;

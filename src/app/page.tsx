@@ -189,7 +189,7 @@ export default async function LandingPage() {
             {destacados.map((producto) => (
               <a
                 key={producto.id}
-                href={producto.urlProducto ?? `https://${producto.tienda.dominio}`}
+                href={producto.tiendas[0]?.urlProducto ?? `https://${producto.tiendas[0]?.dominio}`}
                 target="_blank"
                 rel="noreferrer"
                 className="group overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-shadow hover:border-indigo-500/40 hover:shadow-xl hover:shadow-indigo-950/30"
@@ -205,20 +205,29 @@ export default async function LandingPage() {
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/10 to-transparent" />
-                  <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                  <div className="absolute bottom-3 left-3 flex flex-wrap gap-1">
+                    {producto.vendedoresReales > 1 && (
+                      <Badge variant="gradient" className="w-fit text-[10px]">
+                        {producto.vendedoresReales} tiendas lo venden
+                      </Badge>
+                    )}
                     {producto.nuevo && (
                       <Badge variant="success" className="w-fit text-[10px]">
                         Nuevo
                       </Badge>
                     )}
-                    <span className="text-[11px] font-medium text-slate-300">{producto.tienda.nicho}</span>
+                    <span className="text-[11px] font-medium text-slate-300">{producto.nicho}</span>
                   </div>
                 </div>
                 <CardContent className="space-y-2 p-4">
                   <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{producto.titulo}</h3>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="truncate">{producto.tienda.dominio}</span>
-                    <span className="font-medium text-foreground">{formatCurrency(producto.precio)}</span>
+                    <span className="truncate">{producto.tiendas[0]?.dominio}</span>
+                    <span className="font-medium text-foreground">
+                      {producto.precioMin === producto.precioMax
+                        ? formatCurrency(producto.precioMin)
+                        : `${formatCurrency(producto.precioMin)}+`}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Visto {formatRelativeTime(producto.vistoUltimaVez)}

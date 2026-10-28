@@ -46,7 +46,7 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
     <>
       <PageHeading
         title="Winning Products"
-        description="Productos reales de tiendas Shopify reales que analizamos de verdad, agrupados por nicho. Título, precio y disponibilidad son los que la tienda publica ahora mismo: nada estimado."
+        description="Productos reales agrupados por nicho y ordenados por cuántas tiendas reales distintas los venden: esa es la señal de qué tan probado está un producto, no un score inventado. Precio y disponibilidad son los que cada tienda publica ahora mismo."
       />
 
       {nichos.length === 0 ? (
@@ -125,7 +125,7 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
                 {resultado.items.map((producto) => (
                   <a
                     key={producto.id}
-                    href={producto.urlProducto ?? `https://${producto.tienda.dominio}`}
+                    href={producto.tiendas[0]?.urlProducto ?? `https://${producto.tiendas[0]?.dominio}`}
                     target="_blank"
                     rel="noreferrer"
                     className="group flex flex-col overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-colors hover:border-indigo-500/50 hover:bg-surface"
@@ -143,23 +143,33 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
                           className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       )}
-                      {producto.nuevo && (
-                        <Badge variant="success" className="absolute left-2 top-2 text-[10px]">
-                          Nuevo
-                        </Badge>
-                      )}
+                      <div className="absolute left-2 top-2 flex gap-1">
+                        {producto.vendedoresReales > 1 && (
+                          <Badge variant="gradient" className="text-[10px]">
+                            {producto.vendedoresReales} tiendas lo venden
+                          </Badge>
+                        )}
+                        {producto.nuevo && (
+                          <Badge variant="success" className="text-[10px]">
+                            Nuevo
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-1 flex-col gap-1.5 p-3">
                       <h3 className="line-clamp-2 text-sm font-medium leading-snug">{producto.titulo}</h3>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold tabular-nums">{formatCurrency(producto.precio)}</span>
-                        {producto.precioComparado && producto.precioComparado > producto.precio && (
-                          <span className="text-[11px] text-muted-foreground line-through">
-                            {formatCurrency(producto.precioComparado)}
-                          </span>
-                        )}
+                        <span className="font-semibold tabular-nums">
+                          {producto.precioMin === producto.precioMax
+                            ? formatCurrency(producto.precioMin)
+                            : `${formatCurrency(producto.precioMin)} – ${formatCurrency(producto.precioMax)}`}
+                        </span>
                       </div>
-                      <p className="truncate text-[11px] text-muted-foreground">{producto.tienda.dominio}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {producto.vendedoresReales === 1
+                          ? producto.tiendas[0]?.dominio
+                          : `${producto.tiendas[0]?.dominio} +${producto.vendedoresReales - 1} más`}
+                      </p>
                       <p className="text-[10px] text-muted-foreground/70">
                         Visto {formatRelativeTime(producto.vistoUltimaVez)}
                       </p>

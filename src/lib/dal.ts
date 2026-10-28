@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { normalizarTexto } from "@/lib/coincidencia";
 import { parseJsonArray, parseJsonObject } from "@/lib/utils";
 import type {
   AdDTO,
@@ -8,6 +9,7 @@ import type {
   PaginatedResult,
   ProductDTO,
   ProductFilters,
+  ProductoGanadorRealDTO,
   ProductoRealDTO,
   StoreChangeDTO,
   StoreDTO,
@@ -454,84 +456,56 @@ export async function listNichosReales(): Promise<NichoRealDTO[]> {
 }
 
 /**
- * Productos reales (de tiendas con catálogo público leído de verdad),
- * opcionalmente filtrados por nicho. Nada de score ni margen inventado: solo
- * lo que la tienda publica (título, precio, disponibilidad) y cuándo se leyó.
+ * Los productos reales más vendidos (más tiendas reales distintas los
+ * venden) de un nicho, o de todos. Usado para "destacados" cortos (panel,
+ * landing): es la misma agrupación que `listProductosRealesPaginado`, solo
+ * que recorta a los primeros `limite`.
  */
-export async function listProductosRealesPorNicho(nicho?: string, limite = 24): Promise<ProductoRealDTO[]> {
-  const desde14Dias = new Date(Date.now() - 14 * 86_400_000);
-
-  const [productos, lanzamientos] = await Promise.all([
-    prisma.storeProduct.findMany({
-      where: {
-        available: true,
-        store: { origen: "ingesta", ...(nicho ? { niche: nicho } : {}) },
-      },
-      orderBy: { lastSeenAt: "desc" },
-      take: limite,
-      include: { store: { select: { id: true, name: true, domain: true, niche: true, country: true } } },
-    }),
-    prisma.storeChange.findMany({
-      where: { type: "NEW_PRODUCT", detectedAt: { gte: desde14Dias }, store: { origen: "ingesta" } },
-      select: { productTitle: true, storeId: true },
-    }),
-  ]);
-
-  const recientes = new Set(lanzamientos.map((l) => `${l.storeId}::${l.productTitle}`));
-
-  return productos.map((producto) => ({
-    id: producto.id,
-    titulo: producto.title,
-    imagen: producto.image,
-    precio: producto.price,
-    precioComparado: producto.comparePrice,
-    moneda: producto.currency,
-    disponible: producto.available,
-    urlProducto: producto.productUrl,
-    tienda: {
-      id: producto.store.id,
-      nombre: producto.store.name,
-      dominio: producto.store.domain,
-      nicho: producto.store.niche,
-      pais: producto.store.country,
-    },
-    vistoUltimaVez: producto.lastSeenAt.toISOString(),
-    nuevo: recientes.has(`${producto.storeId}::${producto.title}`),
-  }));
+export async function listProductosRealesPorNicho(nicho?: string, limite = 24): Promise<ProductoGanadorRealDTO[]> {
+  const todos = await agruparProductosReales(nicho);
+  return todos.slice(0, limite);
 }
 
 export interface ProductosRealesPaginados {
-  items: ProductoRealDTO[];
+  items: ProductoGanadorRealDTO[];
   total: number;
   pagina: number;
   totalPaginas: number;
 }
 
 /**
- * Igual que `listProductosRealesPorNicho`, pero paginado y con el total real
- * del nicho (no solo cuántos se cargaron en esta página): así el contador que
- * se muestra en pantalla nunca se queda corto frente a lo que de verdad hay.
+ * Agrupa los productos reales de un nicho (o de todos) por título
+ * normalizado, DENTRO de cada nicho: el mismo producto vendido por varias
+ * tiendas reales se cuenta como un producto con varios vendedores, no como
+ * listados repetidos. `vendedoresReales` (cuántas tiendas reales distintas lo
+ * venden) es la única señal de "qué tan bueno es" que se calcula — ninguna
+ * se inventa, todas se pueden comprobar abriendo las tiendas listadas.
+ *
+ * Coste: una sola consulta por nicho (como mucho ~6-7 mil filas en el nicho
+ * más grande ahora mismo), agrupada en memoria — nada de comparar producto a
+ * producto, por eso es rápido incluso a esta escala.
  */
-export async function listProductosRealesPaginado(
-  nicho: string | undefined,
-  pagina = 1,
-  pageSize = 60,
-): Promise<ProductosRealesPaginados> {
+async function agruparProductosReales(nicho?: string): Promise<ProductoGanadorRealDTO[]> {
   const desde14Dias = new Date(Date.now() - 14 * 86_400_000);
   const where = {
     available: true,
     store: { origen: "ingesta", ...(nicho ? { niche: nicho } : {}) },
   };
 
-  const [productos, total, lanzamientos] = await Promise.all([
+  const [productos, lanzamientos] = await Promise.all([
     prisma.storeProduct.findMany({
       where,
       orderBy: { lastSeenAt: "desc" },
-      skip: (pagina - 1) * pageSize,
-      take: pageSize,
-      include: { store: { select: { id: true, name: true, domain: true, niche: true, country: true } } },
+      select: {
+        title: true,
+        image: true,
+        price: true,
+        productUrl: true,
+        lastSeenAt: true,
+        storeId: true,
+        store: { select: { name: true, domain: true, niche: true } },
+      },
     }),
-    prisma.storeProduct.count({ where }),
     prisma.storeChange.findMany({
       where: { type: "NEW_PRODUCT", detectedAt: { gte: desde14Dias }, store: { origen: "ingesta" } },
       select: { productTitle: true, storeId: true },
@@ -540,26 +514,86 @@ export async function listProductosRealesPaginado(
 
   const recientes = new Set(lanzamientos.map((l) => `${l.storeId}::${l.productTitle}`));
 
-  return {
-    items: productos.map((producto) => ({
-      id: producto.id,
-      titulo: producto.title,
-      imagen: producto.image,
-      precio: producto.price,
-      precioComparado: producto.comparePrice,
-      moneda: producto.currency,
-      disponible: producto.available,
-      urlProducto: producto.productUrl,
-      tienda: {
-        id: producto.store.id,
+  interface Grupo {
+    titulo: string;
+    imagen: string | null;
+    moneda: string;
+    nicho: string;
+    vistoUltimaVez: string;
+    nuevo: boolean;
+    vendedores: Map<string, { nombre: string; dominio: string; precio: number; urlProducto: string | null }>;
+  }
+
+  const grupos = new Map<string, Grupo>();
+
+  for (const producto of productos) {
+    const clave = `${producto.store.niche}::${normalizarTexto(producto.title)}`;
+    let grupo = grupos.get(clave);
+    if (!grupo) {
+      grupo = {
+        titulo: producto.title,
+        imagen: producto.image,
+        moneda: "USD",
+        nicho: producto.store.niche,
+        vistoUltimaVez: producto.lastSeenAt.toISOString(),
+        nuevo: false,
+        vendedores: new Map(),
+      };
+      grupos.set(clave, grupo);
+    }
+    if (!grupo.imagen && producto.image) grupo.imagen = producto.image;
+    if (producto.lastSeenAt.toISOString() > grupo.vistoUltimaVez) grupo.vistoUltimaVez = producto.lastSeenAt.toISOString();
+    if (recientes.has(`${producto.storeId}::${producto.title}`)) grupo.nuevo = true;
+    // Un vendedor por tienda: si la misma tienda repite el título (variantes
+    // distintas), se queda con el precio más reciente visto (el primero, por
+    // venir ya ordenado por lastSeenAt desc).
+    if (!grupo.vendedores.has(producto.storeId)) {
+      grupo.vendedores.set(producto.storeId, {
         nombre: producto.store.name,
         dominio: producto.store.domain,
-        nicho: producto.store.niche,
-        pais: producto.store.country,
-      },
-      vistoUltimaVez: producto.lastSeenAt.toISOString(),
-      nuevo: recientes.has(`${producto.storeId}::${producto.title}`),
-    })),
+        precio: producto.price,
+        urlProducto: producto.productUrl,
+      });
+    }
+  }
+
+  const resultado: ProductoGanadorRealDTO[] = [...grupos.entries()].map(([clave, grupo]) => {
+    const precios = [...grupo.vendedores.values()].map((v) => v.precio);
+    return {
+      id: clave,
+      titulo: grupo.titulo,
+      imagen: grupo.imagen,
+      precioMin: Math.min(...precios),
+      precioMax: Math.max(...precios),
+      moneda: grupo.moneda,
+      vendedoresReales: grupo.vendedores.size,
+      tiendas: [...grupo.vendedores.values()].sort((a, b) => a.precio - b.precio),
+      nicho: grupo.nicho,
+      vistoUltimaVez: grupo.vistoUltimaVez,
+      nuevo: grupo.nuevo,
+    };
+  });
+
+  resultado.sort((a, b) => b.vendedoresReales - a.vendedoresReales || (a.vistoUltimaVez < b.vistoUltimaVez ? 1 : -1));
+  return resultado;
+}
+
+/**
+ * Productos reales agrupados por nicho, ya ordenados por cuántas tiendas
+ * reales distintas los venden (la señal de "producto ganador" real). Paginado
+ * y con el total real de grupos del nicho.
+ */
+export async function listProductosRealesPaginado(
+  nicho: string | undefined,
+  pagina = 1,
+  pageSize = 60,
+): Promise<ProductosRealesPaginados> {
+  const todos = await agruparProductosReales(nicho);
+  const total = todos.length;
+  const inicio = (pagina - 1) * pageSize;
+
+  return {
+    items: todos.slice(inicio, inicio + pageSize),
     total,
     pagina,
     totalPaginas: Math.max(1, Math.ceil(total / pageSize)),
