@@ -8,7 +8,7 @@
  *   · 20 productos ganadores + 600 métricas diarias (30 días por producto).
  *   · 30 anuncios de Facebook, TikTok e Instagram.
  *   · 10 tiendas Shopify con sus productos y 40 eventos de timeline.
- *   · 12 proveedores, trackers, guardados, notificaciones y generaciones de IA.
+ *   · trackers, guardados, notificaciones y generaciones de IA de ejemplo.
  *
  *  Los scores NO se escriben a mano: los calcula el motor de tendencias
  *  (src/lib/trendEngine.ts), la misma lógica que usa la aplicación.
@@ -32,7 +32,6 @@ import {
 import { SEED_PRODUCTS, imagenesProducto } from "./data/products";
 import { SEED_STORES } from "./data/stores";
 import { SEED_ADS, SAMPLE_VIDEOS } from "./data/ads";
-import { SEED_SUPPLIERS } from "./data/suppliers";
 
 const DIAS_HISTORICO = 30;
 
@@ -410,17 +409,6 @@ async function crearAnuncios(productos: Awaited<ReturnType<typeof crearCatalogo>
   return anuncios.length;
 }
 
-async function crearProveedores() {
-  await prisma.supplier.createMany({
-    data: SEED_SUPPLIERS.map((proveedor, indice) => ({
-      ...proveedor,
-      categories: proveedor.categories,
-      createdAt: haceDias(70 - indice * 3),
-    })),
-  });
-  return SEED_SUPPLIERS.length;
-}
-
 async function crearActividadDeUsuario(
   usuarios: Awaited<ReturnType<typeof crearUsuarios>>,
   productos: Awaited<ReturnType<typeof crearCatalogo>>,
@@ -669,7 +657,7 @@ async function crearEquipoYWebhooks(adminId: string) {
   return { miembros, webhooks: 1 };
 }
 
-async function notificarResumen(usuarios: number, productos: number, tiendas: number, anuncios: number, proveedores: number) {
+async function notificarResumen(usuarios: number, productos: number, tiendas: number, anuncios: number) {
   const totalMetricas = await prisma.trendMetric.count();
   const totalEventos = await prisma.storeChange.count();
   const dorados = await prisma.product.count({ where: { isGoldenOpportunity: true } });
@@ -679,7 +667,6 @@ async function notificarResumen(usuarios: number, productos: number, tiendas: nu
   console.log(`   Métricas diarias:${totalMetricas}`);
   console.log(`   Anuncios:        ${anuncios}`);
   console.log(`   Tiendas:         ${tiendas}  (${totalEventos} eventos de timeline)`);
-  console.log(`   Proveedores:     ${proveedores}`);
   console.log("\n   Cuentas de acceso:");
   console.log("   · admin@trendhunter.pro / admin1234   (ADMIN · BUSINESS)");
   console.log("   · demo@trendhunter.pro  / demo1234    (USER · PRO)");
@@ -723,11 +710,10 @@ async function main() {
   const tiendas = await crearTiendas(productos);
   const eventos = await crearTimelineTiendas(tiendas);
   const anuncios = await crearAnuncios(productos);
-  const proveedores = await crearProveedores();
   await crearActividadDeUsuario(usuarios, productos, tiendas);
   const equipo = await crearEquipoYWebhooks(usuarios.admin.id);
 
-  await notificarResumen(4 + usuarios.extras.length, productos.length, tiendas.length, anuncios, proveedores);
+  await notificarResumen(4 + usuarios.extras.length, productos.length, tiendas.length, anuncios);
   console.log(`   Eventos de timeline: ${eventos}`);
   console.log(`   Equipo demo:     ${equipo.miembros} plazas (1 invitación pendiente) · ${equipo.webhooks} webhook`);
   console.log(`   Invitación demo: /equipos/aceptar?token=demo-invitacion-equipo-trendhunter-2026`);

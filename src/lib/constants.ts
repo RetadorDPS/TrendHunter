@@ -288,7 +288,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   {
     href: "/dashboard/suppliers",
     label: "Suppliers Finder",
-    description: "Proveedores con mejor relación calidad-precio",
+    description: "Busca cada producto real en AliExpress y Alibaba",
     icon: "Truck",
   },
   {

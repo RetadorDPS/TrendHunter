@@ -846,41 +846,6 @@ export async function getTrendDataStatus() {
 //  Proveedores
 // ---------------------------------------------------------------------------
 
-/** Proveedores con filtros por plataforma, categoría y valoración mínima. */
-export async function listSuppliers(filtros: { platform?: string; category?: string; minRating?: number } = {}) {
-  const proveedores = await prisma.supplier.findMany({
-    where: {
-      ...(filtros.platform && filtros.platform !== "ALL" ? { platform: filtros.platform as never } : {}),
-      ...(typeof filtros.minRating === "number" ? { rating: { gte: filtros.minRating } } : {}),
-    },
-    orderBy: [{ rating: "desc" }, { shippingTimeDays: "asc" }],
-  });
-
-  return proveedores
-    .filter((proveedor) =>
-      !filtros.category || filtros.category === "ALL"
-        ? true
-        : parseJsonArray<string>(proveedor.categories).includes(filtros.category),
-    )
-    .map((proveedor) => ({
-      id: proveedor.id,
-      name: proveedor.name,
-      platform: proveedor.platform,
-      url: proveedor.url,
-      rating: proveedor.rating,
-      reviewCount: proveedor.reviewCount,
-      minOrderValue: proveedor.minOrderValue,
-      shippingTimeDays: proveedor.shippingTimeDays,
-      shippingCost: proveedor.shippingCost,
-      location: proveedor.location,
-      categories: parseJsonArray<string>(proveedor.categories),
-      verified: proveedor.verified,
-      tradeAssurance: proveedor.tradeAssurance,
-      priceIndex: proveedor.priceIndex,
-      notes: proveedor.notes,
-    }));
-}
-
 // ---------------------------------------------------------------------------
 //  Historial de IA
 // ---------------------------------------------------------------------------
