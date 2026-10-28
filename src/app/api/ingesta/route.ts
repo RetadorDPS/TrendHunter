@@ -15,7 +15,9 @@ import { logger } from "@/lib/logger";
  *     "geo": "ES",                   // país de Google Trends
  *     "tendencias": true,            // leer también las tendencias del día
  *     "paginas": 3,                  // páginas del catálogo por tienda (1–4)
- *     "maxTiendas": 8                // si no se pasan dominios
+ *     "maxTiendas": 8,               // si no se pasan dominios
+ *     "nicho": "Mascotas",           // solo con un único dominio: fuerza el nicho
+ *     "pais": "US"                   // solo con un único dominio: país de la tienda
  *   }
  *
  * Respuesta: qué se ha leído, qué ha cambiado y qué ha fallado (con motivo).
@@ -32,6 +34,8 @@ export async function POST(request: Request) {
     paginas?: number;
     maxTiendas?: number;
     soloTendencias?: boolean;
+    nicho?: string;
+    pais?: string;
   };
 
   const inicio = Date.now();
@@ -54,7 +58,11 @@ export async function POST(request: Request) {
 
   // Un solo dominio: se devuelve el detalle completo (útil desde la interfaz).
   if (cuerpo.dominios?.length === 1 && !cuerpo.tendencias) {
-    const resultado = await ingerirTienda(cuerpo.dominios[0], { paginas: cuerpo.paginas });
+    const resultado = await ingerirTienda(cuerpo.dominios[0], {
+      paginas: cuerpo.paginas,
+      nicho: cuerpo.nicho,
+      pais: cuerpo.pais,
+    });
     logger.info("api_ingesta_tienda", {
       via: autorizacion.via,
       dominio: resultado.dominio,
