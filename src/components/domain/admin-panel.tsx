@@ -300,7 +300,7 @@ export function AdminPanel({ usuarios, productos, analisis, imagenes }: AdminPan
         </TabsTrigger>
         <TabsTrigger value="productos" className="gap-1.5">
           <Archive className="size-3.5" />
-          Catálogo ({productos.length})
+          Catálogo de ejemplo ({productos.length})
         </TabsTrigger>
         <TabsTrigger value="scrapings" className="gap-1.5">
           <Search className="size-3.5" />
@@ -308,7 +308,7 @@ export function AdminPanel({ usuarios, productos, analisis, imagenes }: AdminPan
         </TabsTrigger>
         <TabsTrigger value="alta" className="gap-1.5">
           <Plus className="size-3.5" />
-          Añadir producto
+          Añadir producto de ejemplo
         </TabsTrigger>
       </TabsList>
 
@@ -429,10 +429,11 @@ export function AdminPanel({ usuarios, productos, analisis, imagenes }: AdminPan
       <TabsContent value="productos" className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Catálogo global</CardTitle>
+            <CardTitle className="text-base">Catálogo de ejemplo (demo)</CardTitle>
             <CardDescription>
-              Archiva productos desactualizados o vuelve a publicarlos. Los cambios se aplican al instante en todo el
-              catálogo.
+              Estos son los 20 productos de ejemplo, no el catálogo real (ese sale de las tiendas Shopify reales
+              leídas en «Fuentes en vivo» y se ve en Winning Products). Archiva o vuelve a publicar estos productos
+              de ejemplo; los cambios se aplican al instante.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">

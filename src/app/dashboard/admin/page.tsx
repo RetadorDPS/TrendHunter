@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, Building2, Megaphone, Package, Users } from "lucide-react";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { getDashboardStats } from "@/lib/dal";
 import { PageHeading } from "@/components/domain/page-heading";
 import { StatCard } from "@/components/domain/stat-card";
 import { AdminPanel, type AdminProduct, type AdminScan, type AdminUser } from "@/components/domain/admin-panel";
@@ -41,10 +42,7 @@ export default async function AdminPage() {
     productos,
     analisis,
     imagenes,
-    totalAnuncios,
-    totalTiendas,
-    totalProductos,
-    productosDorados,
+    estadisticasReales,
     usuariosPorPlan,
   ] = await Promise.all([
     prisma.user.findMany({
@@ -90,10 +88,7 @@ export default async function AdminPage() {
       },
     }),
     listarImagenes(),
-    prisma.ad.count(),
-    prisma.store.count(),
-    prisma.product.count(),
-    prisma.product.count({ where: { isGoldenOpportunity: true } }),
+    getDashboardStats(),
     prisma.user.groupBy({ by: ["planType"], _count: { _all: true } }),
   ]);
 
@@ -177,15 +172,15 @@ export default async function AdminPage() {
           hint={`${formatCurrency(mrr * 12)} anuales`}
         />
         <StatCard
-          label="Catálogo"
-          value={`${totalProductos}`}
+          label="Productos reales"
+          value={`${estadisticasReales.productosReales}`}
           icon={Megaphone}
           accent="violet"
-          hint={`${productosDorados} oportunidades doradas · ${totalAnuncios} anuncios`}
+          hint={`${estadisticasReales.anunciosReales} anuncios reales (Meta)`}
         />
         <StatCard
-          label="Tiendas y scrapings"
-          value={`${totalTiendas}`}
+          label="Tiendas reales y scrapings"
+          value={`${estadisticasReales.tiendasReales}`}
           icon={Building2}
           accent="amber"
           hint={`${analisis.filter((fila) => fila.status === "FAILED").length} análisis con error`}
