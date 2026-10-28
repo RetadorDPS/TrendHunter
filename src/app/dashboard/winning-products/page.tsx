@@ -1,7 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { LayoutGrid, PackageSearch, Radar } from "lucide-react";
-import { listNichosReales, listProductosRealesPorNicho } from "@/lib/dal";
+import { listNichosReales, listProductosRealesPaginado } from "@/lib/dal";
 import { PageHeading } from "@/components/domain/page-heading";
 import { RadarTendencias } from "@/components/domain/radar-tendencias";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,6 +14,8 @@ export const metadata = {
   description: "Productos reales leídos del catálogo público de tiendas Shopify de verdad, organizados por nicho.",
 };
 
+const PAGE_SIZE = 60;
+
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
@@ -23,14 +24,23 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const nichoParam = params.nicho;
   const nichoSeleccionado = Array.isArray(nichoParam) ? nichoParam[0] : nichoParam;
+  const paginaParam = Array.isArray(params.pagina) ? params.pagina[0] : params.pagina;
+  const pagina = Math.max(1, Number(paginaParam) || 1);
 
-  const [nichos, productos] = await Promise.all([
+  const [nichos, resultado] = await Promise.all([
     listNichosReales(),
-    listProductosRealesPorNicho(nichoSeleccionado, 48),
+    listProductosRealesPaginado(nichoSeleccionado, pagina, PAGE_SIZE),
   ]);
 
   const totalProductos = nichos.reduce((suma, nicho) => suma + nicho.productos, 0);
   const totalTiendas = nichos.reduce((suma, nicho) => suma + nicho.tiendas, 0);
+
+  /** Construye la URL de una página manteniendo el nicho elegido. */
+  const urlPagina = (numero: number) =>
+    `/dashboard/winning-products?${new URLSearchParams({
+      ...(nichoSeleccionado ? { nicho: nichoSeleccionado } : {}),
+      pagina: String(numero),
+    }).toString()}`;
 
   return (
     <>
@@ -84,10 +94,13 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
           <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-2 text-sm">
               <LayoutGrid className="size-4 text-indigo-400" />
-              <span className="font-medium tabular-nums">{productos.length}</span>
+              <span className="font-medium tabular-nums">{resultado.total}</span>
               <span className="text-muted-foreground">
-                {productos.length === 1 ? "producto real" : "productos reales"}
+                {resultado.total === 1 ? "producto real" : "productos reales"}
                 {nichoSeleccionado ? ` en «${nichoSeleccionado}»` : ""}
+                {resultado.total > PAGE_SIZE
+                  ? ` · mostrando ${(pagina - 1) * PAGE_SIZE + 1}-${Math.min(pagina * PAGE_SIZE, resultado.total)}`
+                  : ""}
               </span>
             </div>
             <span className="text-xs text-muted-foreground">
@@ -95,7 +108,7 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
             </span>
           </Card>
 
-          {productos.length === 0 ? (
+          {resultado.items.length === 0 ? (
             <EmptyState
               icon={PackageSearch}
               title="Sin productos reales en este nicho todavía"
@@ -107,49 +120,80 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
               }
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {productos.map((producto) => (
-                <a
-                  key={producto.id}
-                  href={producto.urlProducto ?? `https://${producto.tienda.dominio}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group flex flex-col overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-colors hover:border-indigo-500/50 hover:bg-surface"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-slate-900">
-                    {producto.imagen && (
-                      <Image
-                        src={producto.imagen}
-                        alt={producto.titulo}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 25vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    )}
-                    {producto.nuevo && (
-                      <Badge variant="success" className="absolute left-2 top-2 text-[10px]">
-                        Nuevo
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1.5 p-3">
-                    <h3 className="line-clamp-2 text-sm font-medium leading-snug">{producto.titulo}</h3>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold tabular-nums">{formatCurrency(producto.precio)}</span>
-                      {producto.precioComparado && producto.precioComparado > producto.precio && (
-                        <span className="text-[11px] text-muted-foreground line-through">
-                          {formatCurrency(producto.precioComparado)}
-                        </span>
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {resultado.items.map((producto) => (
+                  <a
+                    key={producto.id}
+                    href={producto.urlProducto ?? `https://${producto.tienda.dominio}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex flex-col overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-colors hover:border-indigo-500/50 hover:bg-surface"
+                  >
+                    <div className="relative aspect-square overflow-hidden bg-slate-900">
+                      {producto.imagen && (
+                        // Imagen real de una tienda externa cualquiera: no se puede
+                        // precomponer la lista de dominios permitidos de next/image,
+                        // así que se sirve tal cual con <img>.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={producto.imagen}
+                          alt={producto.titulo}
+                          loading="lazy"
+                          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      )}
+                      {producto.nuevo && (
+                        <Badge variant="success" className="absolute left-2 top-2 text-[10px]">
+                          Nuevo
+                        </Badge>
                       )}
                     </div>
-                    <p className="truncate text-[11px] text-muted-foreground">{producto.tienda.dominio}</p>
-                    <p className="text-[10px] text-muted-foreground/70">
-                      Visto {formatRelativeTime(producto.vistoUltimaVez)}
-                    </p>
-                  </div>
-                </a>
-              ))}
-            </div>
+                    <div className="flex flex-1 flex-col gap-1.5 p-3">
+                      <h3 className="line-clamp-2 text-sm font-medium leading-snug">{producto.titulo}</h3>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold tabular-nums">{formatCurrency(producto.precio)}</span>
+                        {producto.precioComparado && producto.precioComparado > producto.precio && (
+                          <span className="text-[11px] text-muted-foreground line-through">
+                            {formatCurrency(producto.precioComparado)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="truncate text-[11px] text-muted-foreground">{producto.tienda.dominio}</p>
+                      <p className="text-[10px] text-muted-foreground/70">
+                        Visto {formatRelativeTime(producto.vistoUltimaVez)}
+                      </p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              {resultado.totalPaginas > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-4">
+                  <Button asChild variant="outline" size="sm" disabled={pagina <= 1}>
+                    <Link
+                      href={urlPagina(Math.max(1, pagina - 1))}
+                      aria-disabled={pagina <= 1}
+                      className={pagina <= 1 ? "pointer-events-none opacity-50" : ""}
+                    >
+                      Anterior
+                    </Link>
+                  </Button>
+                  <span className="px-3 text-sm text-muted-foreground tabular-nums">
+                    Página {pagina} de {resultado.totalPaginas}
+                  </span>
+                  <Button asChild variant="outline" size="sm">
+                    <Link
+                      href={urlPagina(Math.min(resultado.totalPaginas, pagina + 1))}
+                      aria-disabled={pagina >= resultado.totalPaginas}
+                      className={pagina >= resultado.totalPaginas ? "pointer-events-none opacity-50" : ""}
+                    >
+                      Siguiente
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

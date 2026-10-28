@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowRight,
   BarChart3,
@@ -197,12 +196,12 @@ export default async function LandingPage() {
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
                   {producto.imagen && (
-                    <Image
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
                       src={producto.imagen}
                       alt={producto.titulo}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/10 to-transparent" />

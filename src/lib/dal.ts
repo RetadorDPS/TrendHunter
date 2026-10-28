@@ -500,6 +500,72 @@ export async function listProductosRealesPorNicho(nicho?: string, limite = 24): 
   }));
 }
 
+export interface ProductosRealesPaginados {
+  items: ProductoRealDTO[];
+  total: number;
+  pagina: number;
+  totalPaginas: number;
+}
+
+/**
+ * Igual que `listProductosRealesPorNicho`, pero paginado y con el total real
+ * del nicho (no solo cuántos se cargaron en esta página): así el contador que
+ * se muestra en pantalla nunca se queda corto frente a lo que de verdad hay.
+ */
+export async function listProductosRealesPaginado(
+  nicho: string | undefined,
+  pagina = 1,
+  pageSize = 60,
+): Promise<ProductosRealesPaginados> {
+  const desde14Dias = new Date(Date.now() - 14 * 86_400_000);
+  const where = {
+    available: true,
+    store: { origen: "ingesta", ...(nicho ? { niche: nicho } : {}) },
+  };
+
+  const [productos, total, lanzamientos] = await Promise.all([
+    prisma.storeProduct.findMany({
+      where,
+      orderBy: { lastSeenAt: "desc" },
+      skip: (pagina - 1) * pageSize,
+      take: pageSize,
+      include: { store: { select: { id: true, name: true, domain: true, niche: true, country: true } } },
+    }),
+    prisma.storeProduct.count({ where }),
+    prisma.storeChange.findMany({
+      where: { type: "NEW_PRODUCT", detectedAt: { gte: desde14Dias }, store: { origen: "ingesta" } },
+      select: { productTitle: true, storeId: true },
+    }),
+  ]);
+
+  const recientes = new Set(lanzamientos.map((l) => `${l.storeId}::${l.productTitle}`));
+
+  return {
+    items: productos.map((producto) => ({
+      id: producto.id,
+      titulo: producto.title,
+      imagen: producto.image,
+      precio: producto.price,
+      precioComparado: producto.comparePrice,
+      moneda: producto.currency,
+      disponible: producto.available,
+      urlProducto: producto.productUrl,
+      tienda: {
+        id: producto.store.id,
+        nombre: producto.store.name,
+        dominio: producto.store.domain,
+        nicho: producto.store.niche,
+        pais: producto.store.country,
+      },
+      vistoUltimaVez: producto.lastSeenAt.toISOString(),
+      nuevo: recientes.has(`${producto.storeId}::${producto.title}`),
+    })),
+    total,
+    pagina,
+    totalPaginas: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
 /** Busca productos reales por título. Para el buscador global. */
 export async function buscarProductosReales(busqueda: string, limite = 5): Promise<ProductoRealDTO[]> {
   const productos = await prisma.storeProduct.findMany({

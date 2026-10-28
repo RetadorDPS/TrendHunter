@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   Activity,
   ArrowRight,
@@ -221,7 +220,8 @@ export default async function DashboardPage() {
                 >
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-slate-900">
                     {producto.imagen && (
-                      <Image src={producto.imagen} alt="" fill sizes="48px" className="object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={producto.imagen} alt="" loading="lazy" className="size-full object-cover" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
