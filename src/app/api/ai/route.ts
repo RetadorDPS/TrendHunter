@@ -11,7 +11,9 @@ import { CONSUMO_IA } from "@/lib/aiRouteHelpers";
  *
  * POST /api/ai
  * { tool: "AD_COPY" | "VIDEO_SCRIPT" | "BUYER_PERSONA" | "STORE_NAMES" | "PRODUCT_ANALYSIS",
- *   productId?: string, options?: Record<string, unknown> }
+ *   productId?: string,  // producto del catálogo de ejemplo
+ *   claveReal?: string,  // o un producto REAL guardado (su "clave")
+ *   options?: Record<string, unknown> }
  */
 export async function POST(request: Request) {
   const sesion = await auth();
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
   const cuerpo = (await request.json()) as {
     tool?: string;
     productId?: string;
+    claveReal?: string;
     options?: Record<string, unknown>;
   };
 
@@ -33,13 +36,20 @@ export async function POST(request: Request) {
   }
 
   // 2) Generación.
-  const resultado = await CONSUMO_IA.ejecutar(cuerpo.tool, cuerpo.productId, cuerpo.options ?? {});
+  const resultado = await CONSUMO_IA.ejecutar(
+    cuerpo.tool,
+    { productId: cuerpo.productId, claveReal: cuerpo.claveReal },
+    cuerpo.options ?? {},
+  );
 
   // 3) Historial (permite revisar y reutilizar generaciones anteriores).
+  const productoReal = cuerpo.claveReal ? await CONSUMO_IA.resolverProductoReal(cuerpo.claveReal) : null;
   const guardado = await prisma.aiGeneration.create({
     data: {
       userId: sesion.user.id,
-      productId: cuerpo.productId ?? null,
+      productId: cuerpo.claveReal ? null : (cuerpo.productId ?? null),
+      productoRealClave: cuerpo.claveReal ?? null,
+      productoRealTitulo: productoReal?.title ?? null,
       tool: cuerpo.tool as never,
       provider: resultado.provider,
       model: resultado.model,

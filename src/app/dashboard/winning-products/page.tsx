@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { LayoutGrid, PackageSearch, Radar } from "lucide-react";
-import { listNichosReales, listProductosRealesPaginado } from "@/lib/dal";
+import { auth } from "@/auth";
+import { listClavesGuardadas, listNichosReales, listProductosRealesPaginado } from "@/lib/dal";
 import { PageHeading } from "@/components/domain/page-heading";
 import { RadarTendencias } from "@/components/domain/radar-tendencias";
+import { GuardarProductoReal } from "@/components/domain/guardar-producto-real";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,10 +29,13 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
   const paginaParam = Array.isArray(params.pagina) ? params.pagina[0] : params.pagina;
   const pagina = Math.max(1, Number(paginaParam) || 1);
 
-  const [nichos, resultado] = await Promise.all([
+  const sesion = await auth();
+  const [nichos, resultado, clavesGuardadas] = await Promise.all([
     listNichosReales(),
     listProductosRealesPaginado(nichoSeleccionado, pagina, PAGE_SIZE),
+    sesion?.user?.id ? listClavesGuardadas(sesion.user.id) : Promise.resolve([]),
   ]);
+  const guardadosSet = new Set(clavesGuardadas);
 
   const totalProductos = nichos.reduce((suma, nicho) => suma + nicho.productos, 0);
   const totalTiendas = nichos.reduce((suma, nicho) => suma + nicho.tiendas, 0);
@@ -143,7 +148,7 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
                           className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       )}
-                      <div className="absolute left-2 top-2 flex gap-1">
+                      <div className="absolute left-2 top-2 flex flex-wrap gap-1 pr-10">
                         {producto.vendedoresReales > 1 && (
                           <Badge variant="gradient" className="text-[10px]">
                             {producto.vendedoresReales} tiendas lo venden
@@ -155,6 +160,16 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
                           </Badge>
                         )}
                       </div>
+                      {sesion?.user?.id && (
+                        <GuardarProductoReal
+                          clave={producto.id}
+                          titulo={producto.titulo}
+                          nicho={producto.nicho}
+                          imagen={producto.imagen}
+                          guardado={guardadosSet.has(producto.id)}
+                          className="absolute right-2 top-2"
+                        />
+                      )}
                     </div>
                     <div className="flex flex-1 flex-col gap-1.5 p-3">
                       <h3 className="line-clamp-2 text-sm font-medium leading-snug">{producto.titulo}</h3>

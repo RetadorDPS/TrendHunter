@@ -1,11 +1,10 @@
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
-import { PROMPT_TEMPLATES, construirContextoProducto, generarContenidoLocal } from "@/lib/aiTemplates";
+import { PROMPT_TEMPLATES, construirContextoProducto, generarContenidoLocal, type ProductoIA } from "@/lib/aiTemplates";
 import type {
   AdCopyVariant,
   AiProvider,
   BuyerPersona,
-  ProductDTO,
   StoreNameIdea,
   VideoScript,
 } from "@/types";
@@ -108,7 +107,7 @@ async function llamarModelo(prompt: string, sistema: string): Promise<{ texto: s
  */
 async function generar<T>(
   clave: keyof typeof PROMPT_TEMPLATES,
-  producto: ProductDTO | null,
+  producto: ProductoIA | null,
   opciones: Record<string, unknown>,
   fallback: () => T,
 ): Promise<AiResult<T>> {
@@ -160,7 +159,7 @@ async function generar<T>(
 
 /** Genera 5 variantes de copy publicitario con ángulos distintos. */
 export async function generateAdCopies(
-  producto: ProductDTO,
+  producto: ProductoIA,
   opciones: { plataforma?: string; tono?: string; publico?: string; cantidad?: number } = {},
 ): Promise<AiResult<AdCopyVariant[]>> {
   const contexto = construirContextoProducto(producto);
@@ -175,7 +174,7 @@ export async function generateAdCopies(
 
 /** Genera un guion de vídeo con escenas cronometradas (15/30/60 s). */
 export async function generateVideoScript(
-  producto: ProductDTO,
+  producto: ProductoIA,
   opciones: { duracion?: 15 | 30 | 60; plataforma?: string; estilo?: string } = {},
 ): Promise<AiResult<VideoScript>> {
   const duracion = opciones.duracion ?? 30;
@@ -190,7 +189,7 @@ export async function generateVideoScript(
 
 /** Genera un buyer persona detallado con objeciones y detonantes de compra. */
 export async function generateBuyerPersona(
-  producto: ProductDTO,
+  producto: ProductoIA,
   opciones: { pais?: string; rangoEdad?: string; genero?: string } = {},
 ): Promise<AiResult<BuyerPersona>> {
   return generar<BuyerPersona>(
@@ -204,7 +203,7 @@ export async function generateBuyerPersona(
 /** Propone nombres de tienda con dominio y justificación de marca. */
 export async function generateStoreNames(
   opciones: { nicho: string; estilo?: string; idioma?: string; cantidad?: number },
-  producto?: ProductDTO | null,
+  producto?: ProductoIA | null,
 ): Promise<AiResult<StoreNameIdea[]>> {
   const cantidad = opciones.cantidad ?? 8;
   return generar<StoreNameIdea[]>(
@@ -216,7 +215,7 @@ export async function generateStoreNames(
 }
 
 /** Analiza un producto (fortalezas, riesgos y recomendación de entrada). */
-export async function analyzeProduct(producto: ProductDTO): Promise<AiResult<Record<string, unknown>>> {
+export async function analyzeProduct(producto: ProductoIA): Promise<AiResult<Record<string, unknown>>> {
   return generar<Record<string, unknown>>(
     "productAnalysis",
     producto,

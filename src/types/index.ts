@@ -264,6 +264,40 @@ export interface ProductoGanadorRealDTO {
   nuevo: boolean;
 }
 
+/**
+ * Un producto real guardado por el usuario. Trae los datos de cuando se
+ * guardó (para que la lista nunca salga vacía) y, si el producto sigue
+ * apareciendo en el catálogo real ahora mismo, también los datos en vivo
+ * (`actual`); si ya no se ve en ninguna tienda real, `actual` es `null` y se
+ * dice honestamente.
+ */
+export interface ProductoGuardadoRealDTO {
+  id: string;
+  clave: string;
+  titulo: string;
+  nicho: string;
+  imagen: string | null;
+  notes: string | null;
+  guardadoEn: string;
+  actual: ProductoGanadorRealDTO | null;
+}
+
+/**
+ * Forma mínima de un producto real que se pasa al motor de IA. A propósito
+ * NO tiene margen, coste, trendScore ni demanda: esos datos no existen para
+ * un producto real, y el motor (prompts y plantilla local) nunca debe
+ * inventarlos para rellenar el hueco.
+ */
+export interface ProductoRealParaIA {
+  esReal: true;
+  clave: string;
+  title: string;
+  nicheTag: string;
+  suggestedSellPrice: number;
+  vendedoresReales: number;
+  tiendasDominios: string[];
+}
+
 /** Resultado del análisis de una tienda (Shop Analyzer). */
 export interface StoreAnalysisResult {
   store: StoreDTO;

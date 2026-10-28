@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { listAiGenerations, listProducts } from "@/lib/dal";
+import { listAiGenerations, listProducts, listProductosRealesGuardados } from "@/lib/dal";
 import { getActiveModel, getActiveProvider } from "@/lib/ai";
 import { getUsage } from "@/lib/planLimits";
 import { PLAN_LIMITS } from "@/lib/constants";
@@ -34,11 +34,23 @@ export default async function AiStudioPage() {
   if (!sesion?.user?.id) return null;
 
   const plan = sesion.user.planType;
-  const [productos, generaciones, usoIa] = await Promise.all([
+  const [productos, guardadosReales, generaciones, usoIa] = await Promise.all([
     listProducts({ sort: "best-score", pageSize: 60 }),
+    listProductosRealesGuardados(sesion.user.id),
     listAiGenerations(sesion.user.id),
     getUsage(sesion.user.id, "AI_GENERATION"),
   ]);
+
+  // Solo los guardados que siguen apareciendo de verdad en alguna tienda real.
+  const productosReales = guardadosReales
+    .filter((g) => g.actual !== null)
+    .map((g) => ({
+      clave: g.clave,
+      titulo: g.titulo,
+      nicho: g.nicho,
+      precio: g.actual!.precioMin,
+      vendedoresReales: g.actual!.vendedoresReales,
+    }));
 
   const historial: GenerationHistoryItem[] = generaciones.map((generacion) => ({
     id: generacion.id,
@@ -58,7 +70,7 @@ export default async function AiStudioPage() {
     <>
       <PageHeading
         title="AI Studio"
-        description="Tu equipo creativo con IA: cinco variantes de copy, guiones con escenas cronometradas, buyer personas, nombres de tienda y análisis estratégico de producto."
+        description="Tu equipo creativo con IA, sobre un producto real guardado o sobre el catálogo de ejemplo: copy publicitario, guiones, buyer personas, nombres de tienda y análisis. Sobre un producto real nunca se inventan margen, demanda ni TrendScore: solo precio y cuántas tiendas reales lo venden."
         actions={
           <Badge variant={proveedorActivo === "SIMULATED" ? "muted" : "success"} className="gap-1">
             {proveedorActivo === "SIMULATED" ? "Motor local" : `Proveedor ${proveedorActivo}`}
@@ -67,6 +79,7 @@ export default async function AiStudioPage() {
       />
 
       <AiStudio
+        productosReales={productosReales}
         productos={productos.items.map((producto) => ({
           id: producto.id,
           title: producto.title,

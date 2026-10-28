@@ -1,4 +1,4 @@
-import type { AdPlatform, ProductDTO } from "@/types";
+import type { AdPlatform, ProductDTO, ProductoRealParaIA } from "@/types";
 import { formatCompactNumber, formatCurrencyPrecise } from "@/lib/utils";
 
 /**
@@ -9,11 +9,34 @@ import { formatCompactNumber, formatCurrencyPrecise } from "@/lib/utils";
  *  · `generarContenidoLocal`: motor determinista que produce contenido real y
  *    específico del producto sin necesidad de red. Es el modo por defecto en
  *    desarrollo y el respaldo si el proveedor falla.
+ *
+ *  Todo lo de aquí acepta tanto un producto del catálogo de ejemplo
+ *  (`ProductDTO`, con TrendScore/margen/demanda) como un producto REAL
+ *  (`ProductoRealParaIA`, solo con lo que sabemos de verdad: título, nicho,
+ *  precio y en cuántas tiendas reales se vende). La regla para lo real: nunca
+ *  rellenar con un número que no venga de `producto`.
  * ============================================================================
  */
 
+export type ProductoIA = ProductDTO | ProductoRealParaIA;
+
+/** ¿Es un producto real (no del catálogo de ejemplo)? */
+export function esProductoReal(producto: ProductoIA | null | undefined): producto is ProductoRealParaIA {
+  return Boolean(producto && "esReal" in producto && producto.esReal === true);
+}
+
 /** Resumen textual del producto que se inyecta en los prompts. */
-export function construirContextoProducto(producto: ProductDTO): string {
+export function construirContextoProducto(producto: ProductoIA): string {
+  if (esProductoReal(producto)) {
+    const tiendas = producto.tiendasDominios.slice(0, 3).join(", ") || "una tienda real";
+    return [
+      `Producto REAL (leído del catálogo público de una tienda Shopify de verdad, no es un ejemplo): ${producto.title}`,
+      `Nicho: ${producto.nicheTag}`,
+      `Precio de venta real ahora mismo: ${formatCurrencyPrecise(producto.suggestedSellPrice)}`,
+      `Validación de mercado: lo vende${producto.vendedoresReales === 1 ? "" : "n"} ${producto.vendedoresReales} tienda${producto.vendedoresReales === 1 ? "" : "s"} real${producto.vendedoresReales === 1 ? "" : "es"} ahora mismo (${tiendas}).`,
+      `IMPORTANTE: no hay coste de proveedor, margen, TrendScore ni cifras de búsquedas/TikTok/Meta para este producto. No inventes esos números ni los menciones como si existieran: usa solo el precio y el dato de cuántas tiendas reales lo venden.`,
+    ].join("\n");
+  }
   return [
     `Producto: ${producto.title}`,
     `Categoría: ${producto.category} · Nicho: ${producto.nicheTag}`,
@@ -26,7 +49,7 @@ export function construirContextoProducto(producto: ProductDTO): string {
 }
 
 interface PromptContext {
-  producto?: ProductDTO | null;
+  producto?: ProductoIA | null;
   [clave: string]: unknown;
 }
 
@@ -40,7 +63,7 @@ export const PROMPT_TEMPLATES = {
   sistema: () => SISTEMA,
 
   adCopy: ({ producto, plataforma = "FACEBOOK", tono = "directo", publico = "público general", cantidad = 5 }: PromptContext) =>
-    `${construirContextoProducto(producto as ProductDTO)}
+    `${construirContextoProducto(producto as ProductoIA)}
 
 Genera exactamente ${cantidad} variantes de anuncio para ${plataforma} con tono ${tono} y dirigidas a ${publico}.
 Cada variante debe atacar un ÁNGULO psicológico diferente (dolor, regalo, ahorro, prueba social, curiosidad, autoridad).
@@ -49,14 +72,14 @@ Devuelve un JSON con la forma:
 "primaryText" entre 300 y 500 caracteres y emojis con moderación (máximo 3).`,
 
   videoScript: ({ producto, duracion = 30, plataforma = "TIKTOK", estilo = "ugc" }: PromptContext) =>
-    `${construirContextoProducto(producto as ProductDTO)}
+    `${construirContextoProducto(producto as ProductoIA)}
 
 Escribe un guion de vídeo de ${duracion} segundos para ${plataforma} en estilo ${estilo}.
 El primer segundo debe ser un hook visual imposible de ignorar. Incluye texto en pantalla y sugerencias de sonido.
 Devuelve un JSON: {"duration":${duracion},"platform":"${plataforma}","concept":"...","hook":"...","scenes":[{"timecode":"0-3 s","visual":"...","voiceover":"...","onScreenText":"...","sound":"..."}],"cta":"...","hashtags":["..."]}`,
 
   buyerPersona: ({ producto, pais = "España", rangoEdad = "28-45", genero = "indiferente" }: PromptContext) =>
-    `${construirContextoProducto(producto as ProductDTO)}
+    `${construirContextoProducto(producto as ProductoIA)}
 
 Crea un buyer persona realista que compre este producto en ${pais}, con edad ${rangoEdad} y género ${genero}.
 Devuelve un JSON: {"name":"...","ageRange":"...","gender":"...","location":"...","income":"...","occupation":"...","painPoints":["..."],"desires":["..."],"objections":["..."],"buyingTriggers":["..."],"channels":["..."],"quote":"..."}`,
@@ -67,9 +90,11 @@ Propón ${cantidad} nombres de tienda online con su dominio ideal y una justific
 Devuelve un JSON: {"names":[{"name":"...","domain":"...","rationale":"..."}]}`,
 
   productAnalysis: ({ producto }: PromptContext) =>
-    `${construirContextoProducto(producto as ProductDTO)}
+    `${construirContextoProducto(producto as ProductoIA)}
 
-Analiza si merece la pena vender este producto ahora mismo. Sé crítico y concreto con los números dados.
+Analiza si merece la pena vender este producto ahora mismo. Sé crítico y concreto con los números dados; si un dato
+(margen, demanda, TrendScore) no aparece arriba, no lo inventes ni lo des por supuesto — basa el análisis solo en lo
+que sí se indica (precio, y cuántas tiendas reales lo venden cuando sea un producto real).
 Devuelve un JSON: {"resumen":"...","fortalezas":["..."],"riesgos":["..."],"recomendacion":"...","precioOptimo":"...","canalesRecomendados":["..."]}`,
 } as const;
 
@@ -81,32 +106,35 @@ Devuelve un JSON: {"resumen":"...","fortalezas":["..."],"riesgos":["..."],"recom
 const ANGULOS = [
   {
     angle: "Dolor específico",
-    hook: (p: ProductDTO) => `¿Sigues con el problema que ${p.title.toLowerCase()} resuelve?`,
+    hook: (p: ProductoIA) => `¿Sigues con el problema que ${p.title.toLowerCase()} resuelve?`,
     sufijo: "Deja de aguantarlo: resultados desde el primer uso.",
   },
   {
     angle: "Regalo que acierta",
-    hook: (p: ProductDTO) => `El regalo que nadie devuelve: ${p.title.toLowerCase()}`,
+    hook: (p: ProductoIA) => `El regalo que nadie devuelve: ${p.title.toLowerCase()}`,
     sufijo: "Si siempre te quedas sin ideas, este año aciertas seguro.",
   },
   {
     angle: "Ahorro frente a alternativas",
-    hook: (p: ProductDTO) => `Cuesta ${formatCurrencyPrecise(p.suggestedSellPrice)} y sustituye alternativas de cientos de euros`,
+    hook: (p: ProductoIA) => `Cuesta ${formatCurrencyPrecise(p.suggestedSellPrice)} y sustituye alternativas de cientos de euros`,
     sufijo: "Misma función, una fracción del precio. Envío gratis y devolución en 30 días.",
   },
   {
     angle: "Prueba social",
-    hook: (p: ProductDTO) => `Más de ${formatCompactNumber(Math.round(p.estimatedUnitsSold / 30) * 30)} personas ya lo usan cada día`,
+    hook: (p: ProductoIA) =>
+      esProductoReal(p)
+        ? `Ya lo venden ${p.vendedoresReales} tienda${p.vendedoresReales === 1 ? "" : "s"} real${p.vendedoresReales === 1 ? "" : "es"}: no es un producto sin probar`
+        : `Más de ${formatCompactNumber(Math.round(p.estimatedUnitsSold / 30) * 30)} personas ya lo usan cada día`,
     sufijo: "Mira las reseñas antes de decidir. Sin riesgos: garantía de devolución.",
   },
   {
     angle: "Curiosidad / descubrimiento",
-    hook: () => "El producto viral que casi nadie ha visto todavía en tu país",
-    sufijo: "Saturación baja y demanda alta: aún es buen momento para probarlo.",
+    hook: () => "El producto que todavía no está en todas partes",
+    sufijo: "Pruébalo antes de que se vuelva evidente para todo el mundo.",
   },
   {
     angle: "Transformación rápida",
-    hook: (p: ProductDTO) => `De 0 a resultado en la primera semana con ${p.title.toLowerCase()}`,
+    hook: (p: ProductoIA) => `De 0 a resultado en la primera semana con ${p.title.toLowerCase()}`,
     sufijo: "Fácil de usar, sin instalación complicada y con guía incluida.",
   },
   {
@@ -138,7 +166,27 @@ function indiceDeterminista(semilla: string, total: number, desplazamiento = 0):
 }
 
 /** Genera descripciones largas plausibles a partir de los datos del producto. */
-function cuerpoAnuncio(producto: ProductDTO, angulo: string): string {
+function cuerpoAnuncio(producto: ProductoIA, angulo: string): string {
+  if (esProductoReal(producto)) {
+    // Sin descripción ni países objetivo reales: el cuerpo se apoya solo en
+    // lo que sí sabemos (nicho, precio, cuántas tiendas reales lo venden).
+    const validacion =
+      producto.vendedoresReales > 1
+        ? `Ahora mismo lo venden ${producto.vendedoresReales} tiendas reales distintas`
+        : "Lo encontramos en el catálogo público de una tienda real";
+    const bloques: Record<string, string> = {
+      "Dolor específico": `${producto.title}, en el nicho de ${producto.nicheTag}. ${validacion}, a ${formatCurrencyPrecise(producto.suggestedSellPrice)}. Si buscas algo en esta categoría, esta es una opción que ya se está vendiendo de verdad.`,
+      "Regalo que acierta": `${producto.title}, por ${formatCurrencyPrecise(producto.suggestedSellPrice)}. Un acierto fácil dentro de ${producto.nicheTag}.`,
+      "Ahorro frente a alternativas": `${producto.title} a ${formatCurrencyPrecise(producto.suggestedSellPrice)}. ${validacion} a precios similares: compara antes de pagar de más por lo mismo.`,
+      "Prueba social": `${producto.title}. ${validacion} en el nicho de ${producto.nicheTag} — no es un producto sin validar.`,
+      "Curiosidad / descubrimiento": `${producto.title}, de ${producto.nicheTag}. ${validacion}.`,
+      "Transformación rápida": `${producto.title}, a ${formatCurrencyPrecise(producto.suggestedSellPrice)}. ${validacion}.`,
+      "Comparativa antes/después": `${producto.title}. ${validacion}: compara tú mismo entre esas tiendas antes de decidir.`,
+      "Urgencia y disponibilidad": `${producto.title}, a ${formatCurrencyPrecise(producto.suggestedSellPrice)}. ${validacion} ahora mismo.`,
+    };
+    return bloques[angulo] ?? bloques["Prueba social"];
+  }
+
   const beneficio = producto.description.split(".")[0].trim();
   const paises = producto.countryAvailability.slice(0, 3).join(", ") || "España";
   const bloques: Record<string, string> = {
@@ -181,11 +229,11 @@ const ESTRUCTURA_GUION: Record<number, Array<{ etiqueta: string; enfoque: string
 /** Genera localmente el contenido de cada herramienta del AI Studio. */
 export function generarContenidoLocal(
   herramienta: string,
-  contexto: { producto?: ProductDTO; nicho?: string; contexto?: string },
+  contexto: { producto?: ProductoIA; nicho?: string; contexto?: string },
   opciones: Record<string, unknown> = {},
 ): Record<string, unknown> {
   const producto = contexto.producto;
-  const semilla = contexto.nicho ?? producto?.id ?? "trendhunter";
+  const semilla = contexto.nicho ?? (producto ? ("id" in producto ? producto.id : producto.clave) : "trendhunter");
 
   switch (herramienta) {
     case "AD_COPY": {
@@ -197,9 +245,9 @@ export function generarContenidoLocal(
         return {
           id: String(indice + 1),
           angle: angulo.angle,
-          hook: angulo.hook(producto as ProductDTO),
-          primaryText: `${cuerpoAnuncio(producto as ProductDTO, angulo.angle)} ${angulo.sufijo}`,
-          headline: truncarTitulo((producto as ProductDTO).title),
+          hook: angulo.hook(producto as ProductoIA),
+          primaryText: `${cuerpoAnuncio(producto as ProductoIA, angulo.angle)} ${angulo.sufijo}`,
+          headline: truncarTitulo((producto as ProductoIA).title),
           description: `${angulo.angle} · Envío gratis · Devolución 30 días`,
           callToAction: ctas[indice % ctas.length],
         };
@@ -211,7 +259,11 @@ export function generarContenidoLocal(
       const duracion = Number(opciones.duracion ?? 30) as 15 | 30 | 60;
       const plataforma = (opciones.plataforma as AdPlatform) ?? "TIKTOK";
       const estructura = ESTRUCTURA_GUION[duracion] ?? ESTRUCTURA_GUION[30];
-      const productoReal = producto as ProductDTO;
+      const productoReal = producto as ProductoIA;
+      const esReal = esProductoReal(productoReal);
+      const fraseDemostracion = esReal
+        ? `lo vende${productoReal.vendedoresReales === 1 ? "" : "n"} ${productoReal.vendedoresReales} tienda${productoReal.vendedoresReales === 1 ? "" : "s"} real${productoReal.vendedoresReales === 1 ? "" : "es"} ahora mismo`
+        : productoReal.description.split(".")[0].toLowerCase();
       const escenas = estructura.map((bloque, indice) => ({
         timecode: bloque.etiqueta,
         visual: `${
@@ -229,7 +281,7 @@ export function generarContenidoLocal(
             ? "Si te pasa esto, mira lo que encontré."
             : indice === estructura.length - 1
               ? `Cuesta ${formatCurrencyPrecise(productoReal.suggestedSellPrice)} y tienes 30 días para devolverlo. Enlace abajo.`
-              : `Aquí se ve cómo funciona: ${productoReal.description.split(".")[0].toLowerCase()}.`,
+              : `Aquí se ve cómo funciona: ${fraseDemostracion}.`,
         onScreenText:
           indice === 0
             ? "Esto cambia todo 👀"
@@ -249,7 +301,7 @@ export function generarContenidoLocal(
           cta: `Consigue ${productoReal.title.toLowerCase()} con envío gratis y 30 días de devolución.`,
           hashtags: [
             `#${productoReal.nicheTag.toLowerCase().replace(/\s+/g, "")}`,
-            `#${productoReal.category.toLowerCase()}`,
+            ...(esReal ? [] : [`#${(productoReal as ProductDTO).category.toLowerCase()}`]),
             "#tiktokmademebuyit",
             "#dropshipping",
             "#españa",
@@ -259,7 +311,7 @@ export function generarContenidoLocal(
     }
 
     case "BUYER_PERSONA": {
-      const productoReal = producto as ProductDTO;
+      const productoReal = producto as ProductoIA;
       const pais = String(opciones.pais ?? "España");
       const generoPorCategoria: Record<string, string> = {
         Belleza: "Femenino (78 % del público)",
@@ -273,7 +325,7 @@ export function generarContenidoLocal(
         persona: {
           name: "Lucía Martín",
           ageRange: String(opciones.rangoEdad ?? "32-45"),
-          gender: generoPorCategoria[productoReal.category] ?? "Mixto",
+          gender: esProductoReal(productoReal) ? "Mixto" : (generoPorCategoria[productoReal.category] ?? "Mixto"),
           location: `${pais} · grandes ciudades y áreas metropolitanas`,
           income: "1.900 - 2.800 € netos/mes",
           occupation: "Empleada de oficina / teletrabajo parcial",
@@ -336,6 +388,33 @@ export function generarContenidoLocal(
 
     case "PRODUCT_ANALYSIS":
     default: {
+      if (esProductoReal(producto)) {
+        const p = producto;
+        const tiendas = p.tiendasDominios.slice(0, 3).join(", ") || "una tienda real";
+        const precio = formatCurrencyPrecise(p.suggestedSellPrice);
+        return {
+          analysis: {
+            resumen: `${p.title} se vende ahora mismo en ${p.vendedoresReales} tienda${p.vendedoresReales === 1 ? "" : "s"} real${p.vendedoresReales === 1 ? "" : "es"} del nicho ${p.nicheTag}, a ${precio}. Es un dato real de validación de mercado, comprobable abriendo esas tiendas — pero no hay margen, coste de proveedor ni demanda de búsquedas/TikTok/Meta para este producto: no se inventan aquí.`,
+            fortalezas: [
+              p.vendedoresReales > 1
+                ? `Vendido por ${p.vendedoresReales} tiendas reales distintas (${tiendas}): ya está validado en el mercado, no es una apuesta sin probar.`
+                : `Encontrado en una tienda real (${tiendas}): precio y disponibilidad son los que esa tienda publica ahora mismo.`,
+              `Precio real de ${precio}, comprobable tú misma abriendo la tienda.`,
+            ],
+            riesgos: [
+              "No hay margen real calculado: hace falta cotizar el coste de proveedor (AliExpress/Alibaba, en Suppliers Finder) antes de decidir si el precio deja beneficio.",
+              "No hay dato real de demanda de búsquedas, TikTok o Meta para este producto concreto: no se sabe si hay tráfico detrás todavía.",
+              p.vendedoresReales > 3
+                ? `Al venderlo ya ${p.vendedoresReales} tiendas, puede haber bastante competencia directa en este producto exacto.`
+                : "La competencia que vemos está limitada a las tiendas que hemos leído: puede haber más vendedores fuera de nuestro radar.",
+            ],
+            recomendacion: `Antes de invertir en anuncios: cotiza el coste real en Suppliers Finder para calcular tu margen de verdad, y valida demanda con una prueba de tráfico pequeña — no hay datos de tendencia que lo decidan por ti.`,
+            precioOptimo: `No se puede calcular un precio óptimo sin tu coste real de proveedor. Precio de referencia en el mercado ahora mismo: ${precio}.`,
+            canalesRecomendados: ["TikTok Ads con creatividades UGC", "Facebook Advantage+ con catálogo", "Instagram Reels orgánico + Spark Ads"],
+          },
+        };
+      }
+
       const productoReal = producto as ProductDTO;
       const margenAbsoluto = productoReal.suggestedSellPrice - productoReal.costPrice;
       const saturacionAlta = productoReal.saturationLevel === "HIGH";

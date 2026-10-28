@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -41,8 +41,18 @@ export interface GenerationHistoryItem {
   preview: string;
 }
 
+/** Producto real guardado, en la forma mínima que necesita el selector. */
+export interface ProductoRealParaSelector {
+  clave: string;
+  titulo: string;
+  nicho: string;
+  precio: number;
+  vendedoresReales: number;
+}
+
 interface AiStudioProps {
   productos: Array<Pick<ProductDTO, "id" | "title" | "category" | "nicheTag" | "suggestedSellPrice">>;
+  productosReales: ProductoRealParaSelector[];
   historial: GenerationHistoryItem[];
   proveedor: { activo: string; modelo: string; configurado: boolean };
   uso: { usado: number; limite: number | null };
@@ -108,10 +118,17 @@ function extraerImagen(datos: unknown): string | null {
  * plantillas local cuando no hay claves, de modo que la herramienta siempre
  * devuelve contenido real y guardado en el historial.
  */
-export function AiStudio({ productos, historial, proveedor, uso }: AiStudioProps) {
+export function AiStudio({ productos, productosReales, historial, proveedor, uso }: AiStudioProps) {
   const [herramienta, setHerramienta] = useState<AiToolType>("AD_COPY");
-  const [productoId, setProductoId] = useState(productos[0]?.id ?? "");
-  const [nicho, setNicho] = useState(productos[0]?.nicheTag ?? "e-commerce de bienestar");
+  // Se codifica como "real:<clave>" o "demo:<id>"; por defecto, un producto
+  // real si tienes alguno guardado (es lo que de verdad quieres generar).
+  const [seleccion, setSeleccion] = useState(
+    productosReales[0] ? `real:${productosReales[0].clave}` : productos[0] ? `demo:${productos[0].id}` : "",
+  );
+  const esRealSeleccionado = seleccion.startsWith("real:");
+  const productoId = !esRealSeleccionado ? seleccion.slice("demo:".length) : "";
+  const claveReal = esRealSeleccionado ? seleccion.slice("real:".length) : "";
+  const [nicho, setNicho] = useState(productosReales[0]?.nicho ?? productos[0]?.nicheTag ?? "e-commerce de bienestar");
   const [plataforma, setPlataforma] = useState("TIKTOK");
   const [tono, setTono] = useState("directo");
   const [duracion, setDuracion] = useState<"15" | "30" | "60">("30");
@@ -123,11 +140,12 @@ export function AiStudio({ productos, historial, proveedor, uso }: AiStudioProps
   const [copiado, setCopiado] = useState(false);
 
   const definicion = HERRAMIENTAS.find((item) => item.id === herramienta)!;
-  const productoSeleccionado = productos.find((producto) => producto.id === productoId) ?? null;
+  const productoDemoSeleccionado = productos.find((producto) => producto.id === productoId) ?? null;
+  const productoRealSeleccionado = productosReales.find((producto) => producto.clave === claveReal) ?? null;
 
   /** Lanza la generación contra la API del AI Studio. */
   async function generar() {
-    if (definicion.requiereProducto && !productoId) {
+    if (definicion.requiereProducto && !productoId && !claveReal) {
       toast.error("Selecciona un producto de referencia");
       return;
     }
@@ -163,7 +181,8 @@ export function AiStudio({ productos, historial, proveedor, uso }: AiStudioProps
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           tool: herramienta,
-          productId: definicion.requiereProducto ? productoId : undefined,
+          productId: definicion.requiereProducto && !claveReal ? productoId : undefined,
+          claveReal: definicion.requiereProducto && claveReal ? claveReal : undefined,
           options: opciones,
         }),
       });
@@ -263,22 +282,52 @@ export function AiStudio({ productos, historial, proveedor, uso }: AiStudioProps
             {definicion.requiereProducto && (
               <div className="space-y-2">
                 <Label>Producto de referencia</Label>
-                <Select value={productoId} onValueChange={setProductoId}>
+                <Select value={seleccion} onValueChange={setSeleccion}>
                   <SelectTrigger aria-label="Producto de referencia">
                     <SelectValue placeholder="Selecciona un producto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {productos.map((producto) => (
-                      <SelectItem key={producto.id} value={producto.id}>
-                        {producto.title.slice(0, 52)}
-                        {producto.title.length > 52 ? "…" : ""}
-                      </SelectItem>
-                    ))}
+                    {productosReales.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Productos reales guardados</SelectLabel>
+                        {productosReales.map((producto) => (
+                          <SelectItem key={producto.clave} value={`real:${producto.clave}`}>
+                            {producto.titulo.slice(0, 48)}
+                            {producto.titulo.length > 48 ? "…" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {productos.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Catálogo de ejemplo</SelectLabel>
+                        {productos.map((producto) => (
+                          <SelectItem key={producto.id} value={`demo:${producto.id}`}>
+                            {producto.title.slice(0, 52)}
+                            {producto.title.length > 52 ? "…" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
-                {productoSeleccionado && (
+                {productoRealSeleccionado && (
                   <p className="text-xs text-muted-foreground">
-                    {productoSeleccionado.category} · {productoSeleccionado.nicheTag}
+                    Real · {productoRealSeleccionado.nicho}
+                    {productoRealSeleccionado.vendedoresReales > 1
+                      ? ` · ${productoRealSeleccionado.vendedoresReales} tiendas reales lo venden`
+                      : ""}
+                  </p>
+                )}
+                {productoDemoSeleccionado && (
+                  <p className="text-xs text-muted-foreground">
+                    Ejemplo · {productoDemoSeleccionado.category} · {productoDemoSeleccionado.nicheTag}
+                  </p>
+                )}
+                {productosReales.length === 0 && (
+                  <p className="text-[11px] text-amber-400/80">
+                    No tienes productos reales guardados. Guarda uno desde Winning Products para generar sobre un
+                    producto de verdad.
                   </p>
                 )}
               </div>

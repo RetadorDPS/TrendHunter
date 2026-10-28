@@ -237,6 +237,7 @@ model User {
   accounts        Account[]
   sessions        Session[]
   savedProducts   SavedProduct[]
+  savedRealProducts SavedRealProduct[]
   trackedStores   TrackedStore[]
   trackedProducts TrackedProduct[]
   notifications   AlertNotification[]
@@ -623,6 +624,26 @@ model SavedProduct {
   @@index([userId])
 }
 
+/// Producto REAL guardado (de `StoreProduct`, no del catálogo de ejemplo).
+/// `clave` es el mismo identificador agrupado que usa `agruparProductosReales`
+/// en el DAL ("nicho::títuloNormalizado"): no hay una fila única de Product a
+/// la que enlazar, porque un producto real puede venir de varias tiendas.
+model SavedRealProduct {
+  id        String   @id @default(cuid())
+  userId    String
+  clave     String
+  titulo    String
+  nicho     String
+  imagen    String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clave])
+  @@index([userId])
+}
+
 model TrackedStore {
   id                  String   @id @default(cuid())
   userId              String
@@ -709,6 +730,10 @@ model AiGeneration {
   id         String      @id @default(cuid())
   userId     String
   productId  String?
+  /// Para generaciones sobre un producto REAL (no hay fila de Product a la
+  /// que enlazar): clave agrupada + título, guardados sueltos.
+  productoRealClave  String?
+  productoRealTitulo String?
   tool       AiToolType
   provider   AiProvider
   model      String

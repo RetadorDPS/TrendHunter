@@ -10,6 +10,7 @@ import type {
   ProductDTO,
   ProductFilters,
   ProductoGanadorRealDTO,
+  ProductoGuardadoRealDTO,
   ProductoRealDTO,
   StoreChangeDTO,
   StoreDTO,
@@ -485,7 +486,7 @@ export interface ProductosRealesPaginados {
  * más grande ahora mismo), agrupada en memoria — nada de comparar producto a
  * producto, por eso es rápido incluso a esta escala.
  */
-async function agruparProductosReales(nicho?: string): Promise<ProductoGanadorRealDTO[]> {
+export async function agruparProductosReales(nicho?: string): Promise<ProductoGanadorRealDTO[]> {
   const desde14Dias = new Date(Date.now() - 14 * 86_400_000);
   const where = {
     available: true,
@@ -626,6 +627,62 @@ export async function buscarProductosReales(busqueda: string, limite = 5): Promi
     },
     vistoUltimaVez: producto.lastSeenAt.toISOString(),
     nuevo: false,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+//  Guardados de productos reales
+// ---------------------------------------------------------------------------
+
+/** Guarda (o actualiza el snapshot de) un producto real para un usuario. */
+export async function guardarProductoReal(
+  userId: string,
+  producto: { clave: string; titulo: string; nicho: string; imagen: string | null },
+): Promise<void> {
+  await prisma.savedRealProduct.upsert({
+    where: { userId_clave: { userId, clave: producto.clave } },
+    create: { userId, clave: producto.clave, titulo: producto.titulo, nicho: producto.nicho, imagen: producto.imagen },
+    update: { titulo: producto.titulo, nicho: producto.nicho, imagen: producto.imagen },
+  });
+}
+
+/** Quita un producto real guardado. */
+export async function quitarProductoReal(userId: string, clave: string): Promise<void> {
+  await prisma.savedRealProduct.deleteMany({ where: { userId, clave } });
+}
+
+/** Claves de productos reales que el usuario ya tiene guardados (para pintar la estrella). */
+export async function listClavesGuardadas(userId: string): Promise<string[]> {
+  const filas = await prisma.savedRealProduct.findMany({ where: { userId }, select: { clave: true } });
+  return filas.map((fila) => fila.clave);
+}
+
+/**
+ * Productos reales guardados por un usuario, con sus datos en vivo (vueltos
+ * a agrupar solo en los nichos donde tiene algo guardado, no en todos). Si un
+ * producto guardado ya no aparece en ninguna tienda real, se dice: `actual`
+ * sale `null` en vez de rellenarse con el snapshot viejo como si siguiera así.
+ */
+export async function listProductosRealesGuardados(userId: string): Promise<ProductoGuardadoRealDTO[]> {
+  const guardados = await prisma.savedRealProduct.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+  if (guardados.length === 0) return [];
+
+  const nichos = [...new Set(guardados.map((g) => g.nicho))];
+  const porNicho = await Promise.all(nichos.map((nicho) => agruparProductosReales(nicho)));
+  const actualPorClave = new Map<string, ProductoGanadorRealDTO>();
+  for (const grupo of porNicho) {
+    for (const producto of grupo) actualPorClave.set(producto.id, producto);
+  }
+
+  return guardados.map((g) => ({
+    id: g.id,
+    clave: g.clave,
+    titulo: g.titulo,
+    nicho: g.nicho,
+    imagen: g.imagen,
+    notes: g.notes,
+    guardadoEn: g.createdAt.toISOString(),
+    actual: actualPorClave.get(g.clave) ?? null,
   }));
 }
 
@@ -880,8 +937,9 @@ export async function listAiGenerations(userId: string, tool?: string) {
     latencyMs: generacion.latencyMs,
     isFavorite: generacion.isFavorite,
     createdAt: generacion.createdAt.toISOString(),
-    productTitle: generacion.product?.title ?? null,
+    productTitle: generacion.product?.title ?? generacion.productoRealTitulo ?? null,
     productImage: generacion.product?.mainImage ?? null,
+    esProductoReal: Boolean(generacion.productoRealClave),
   }));
 }
 

@@ -1,24 +1,25 @@
 import Link from "next/link";
 import { auth } from "@/auth";
-import { listTrackedProductAlerts, listTrackedProducts, listSavedProducts } from "@/lib/dal";
+import { listTrackedProductAlerts, listTrackedProducts, listProductosRealesGuardados } from "@/lib/dal";
 import { PageHeading } from "@/components/domain/page-heading";
 import { StatCard } from "@/components/domain/stat-card";
 import { TrackedProductCard } from "@/components/domain/tracked-product-card";
+import { GuardarProductoReal } from "@/components/domain/guardar-producto-real";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell, BellRing, Bookmark, Target, TrendingUp } from "lucide-react";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { NOTIFICATION_TYPE_LABELS } from "@/types";
 
 export const metadata = {
   title: "Product Tracker",
-  description: "Sigue la evolución de productos concretos, define umbrales de alerta y revisa su historial.",
+  description: "Guarda productos reales para no perderlos de vista y sigue la evolución del catálogo de ejemplo.",
 };
 
-/** Módulo 8 · Product Tracker: seguimiento fino de productos y sus alertas. */
+/** Módulo 8 · Product Tracker: favoritos reales + seguimiento del catálogo de ejemplo. */
 export default async function ProductTrackerPage() {
   const sesion = await auth();
   if (!sesion?.user?.id) return null;
@@ -26,7 +27,7 @@ export default async function ProductTrackerPage() {
   const [seguidos, alertas, favoritos] = await Promise.all([
     listTrackedProducts(sesion.user.id),
     listTrackedProductAlerts(sesion.user.id, 25),
-    listSavedProducts(sesion.user.id),
+    listProductosRealesGuardados(sesion.user.id),
   ]);
 
   const scoreMedio =
@@ -34,102 +35,178 @@ export default async function ProductTrackerPage() {
       ? seguidos.reduce((suma, item) => suma + item.product.trendScore, 0) / seguidos.length
       : 0;
   const dorados = seguidos.filter((item) => item.product.isGoldenOpportunity).length;
-  const objetivosAlcanzados = seguidos.filter((item) => item.product.trendScore >= item.targetTrendScore).length;
+  const favoritosActivos = favoritos.filter((f) => f.actual !== null).length;
 
   return (
     <>
       <PageHeading
         title="Product Tracker"
-        description="Evolución del TrendScore de los productos que sigues, umbrales de alerta personalizados y avisos automáticos."
+        description="Guardados: productos reales que quieres recordar, con su precio y cuántas tiendas reales lo venden ahora mismo. Seguimiento y Alertas todavía funcionan sobre el catálogo de ejemplo (20 productos), no sobre datos reales."
         actions={
           <Button asChild className="gap-2">
             <Link href="/dashboard/winning-products">
-              <TrendingUp className="size-4" />
-              Añadir productos
+              <Bookmark className="size-4" />
+              Guardar productos reales
             </Link>
           </Button>
         }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Productos seguidos" value={seguidos.length} icon={Target} hint="con alertas configurables" />
+        <StatCard label="Guardados reales" value={favoritos.length} icon={Bookmark} hint={`${favoritosActivos} siguen a la venta`} accent="emerald" />
         <StatCard
-          label="Score medio"
+          label="Seguidos (ejemplo)"
+          value={seguidos.length}
+          icon={Target}
+          hint="catálogo de ejemplo, no real"
+        />
+        <StatCard
+          label="Score medio (ejemplo)"
           value={scoreMedio.toFixed(1)}
           icon={TrendingUp}
           accent="violet"
-          hint="media del TrendScore seguido"
+          hint="catálogo de ejemplo, no real"
         />
         <StatCard
-          label="Objetivos alcanzados"
-          value={objetivosAlcanzados}
-          icon={BellRing}
-          accent="emerald"
-          hint="productos por encima de su umbral"
-        />
-        <StatCard
-          label="Oportunidades doradas"
+          label="Oportunidades doradas (ejemplo)"
           value={dorados}
           icon={Bell}
           accent="amber"
-          hint="score > 80 y saturación baja"
+          hint="catálogo de ejemplo, no real"
         />
       </div>
 
-      <Tabs defaultValue="seguimiento">
+      <Tabs defaultValue="favoritos">
         <TabsList>
+          <TabsTrigger value="favoritos" className="gap-1.5">
+            <Bookmark className="size-3.5" />
+            Guardados ({favoritos.length})
+          </TabsTrigger>
           <TabsTrigger value="seguimiento" className="gap-1.5">
             <Target className="size-3.5" />
-            En seguimiento ({seguidos.length})
+            Seguimiento, ejemplo ({seguidos.length})
           </TabsTrigger>
           <TabsTrigger value="alertas" className="gap-1.5">
             <Bell className="size-3.5" />
-            Alertas ({alertas.length})
-          </TabsTrigger>
-          <TabsTrigger value="favoritos" className="gap-1.5">
-            <Bookmark className="size-3.5" />
-            Favoritos ({favoritos.length})
+            Alertas, ejemplo ({alertas.length})
           </TabsTrigger>
         </TabsList>
 
-        {/* --- Productos en seguimiento --- */}
+        {/* --- Guardados reales --- */}
+        <TabsContent value="favoritos">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bookmark className="size-4 text-indigo-400" />
+                Productos reales guardados
+              </CardTitle>
+              <CardDescription>
+                Marcados con la estrella desde Winning Products o Suppliers Finder. El precio y las tiendas se
+                comprueban en vivo cada vez que entras aquí.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {favoritos.length === 0 ? (
+                <EmptyState
+                  icon={Bookmark}
+                  title="Todavía no has guardado ningún producto real"
+                  description="Entra en Winning Products y pulsa la estrella en los productos reales que te interesen."
+                  action={
+                    <Button asChild size="sm">
+                      <Link href="/dashboard/winning-products">Ir a Winning Products</Link>
+                    </Button>
+                  }
+                />
+              ) : (
+                favoritos.map((favorito) => (
+                  <div
+                    key={favorito.id}
+                    className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-surface/40 p-3"
+                  >
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-slate-900">
+                      {favorito.imagen && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={favorito.imagen} alt="" loading="lazy" className="size-full object-cover" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-slate-100">{favorito.titulo}</p>
+                      {favorito.actual ? (
+                        <p className="text-xs text-muted-foreground">
+                          {favorito.actual.precioMin === favorito.actual.precioMax
+                            ? formatCurrency(favorito.actual.precioMin)
+                            : `${formatCurrency(favorito.actual.precioMin)} – ${formatCurrency(favorito.actual.precioMax)}`}
+                          {" · "}
+                          {favorito.actual.vendedoresReales}{" "}
+                          {favorito.actual.vendedoresReales === 1 ? "tienda real lo vende" : "tiendas reales lo venden"}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-400/80">
+                          Ya no se ve en ninguna tienda real analizada ahora mismo.
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground/70">
+                        {favorito.nicho} · guardado {formatRelativeTime(favorito.guardadoEn)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {favorito.actual?.tiendas[0] && (
+                        <Button asChild size="sm" variant="outline">
+                          <a
+                            href={favorito.actual.tiendas[0].urlProducto ?? `https://${favorito.actual.tiendas[0].dominio}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Ver tienda real
+                          </a>
+                        </Button>
+                      )}
+                      <GuardarProductoReal
+                        clave={favorito.clave}
+                        titulo={favorito.titulo}
+                        nicho={favorito.nicho}
+                        imagen={favorito.imagen}
+                        guardado
+                        className="static bg-transparent hover:bg-surface"
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- Productos en seguimiento (catálogo de ejemplo) --- */}
         <TabsContent value="seguimiento" className="space-y-4">
           {seguidos.length === 0 ? (
             <EmptyState
               icon={Target}
-              title="No sigues ningún producto todavía"
-              description="Entra en el catálogo de Winning Products y pulsa «Seguir» en los productos que te interesen para ver su evolución y recibir alertas."
-              action={
-                <Button asChild className="gap-2">
-                  <Link href="/dashboard/winning-products">
-                    <TrendingUp className="size-4" />
-                    Explorar el catálogo
-                  </Link>
-                </Button>
-              }
+              title="No sigues ningún producto de ejemplo todavía"
+              description="Esto sigue funcionando sobre el catálogo de ejemplo (20 productos), con su TrendScore y umbrales de alerta. Todavía no existe un seguimiento equivalente para productos reales."
             />
           ) : (
             seguidos.map((item, indice) => <TrackedProductCard key={item.id} item={item} index={indice} />)
           )}
         </TabsContent>
 
-        {/* --- Alertas de los productos seguidos --- */}
+        {/* --- Alertas (catálogo de ejemplo) --- */}
         <TabsContent value="alertas">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <BellRing className="size-4 text-amber-400" />
-                Historial de alertas
+                Historial de alertas (catálogo de ejemplo)
               </CardTitle>
               <CardDescription>
-                Avisos generados por los productos que sigues: subidas de tendencia, cambios de saturación y precios.
+                Avisos del catálogo de ejemplo: subidas de TrendScore, cambios de saturación y precio. Las tiendas
+                reales que sigues avisan por su propio timeline en Store Tracker.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {alertas.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
-                  Sin alertas todavía. Cuando un producto seguido supere su umbral o cambie de tendencia, aparecerá
-                  aquí y en la campana de la cabecera.
+                  Sin alertas todavía.
                 </p>
               ) : (
                 alertas.map((alerta) => (
@@ -154,47 +231,6 @@ export default async function ProductTrackerPage() {
                         <Link href={alerta.actionUrl}>Ver producto</Link>
                       </Button>
                     )}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* --- Favoritos guardados --- */}
-        <TabsContent value="favoritos">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bookmark className="size-4 text-indigo-400" />
-                Favoritos guardados
-              </CardTitle>
-              <CardDescription>
-                Productos marcados con la estrella desde el catálogo o el detalle, con sus notas y carpetas.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {favoritos.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
-                  Todavía no has guardado ningún producto en favoritos.
-                </p>
-              ) : (
-                favoritos.map((favorito) => (
-                  <div
-                    key={favorito.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-surface/40 p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-100">{favorito.product.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Guardado {formatRelativeTime(favorito.createdAt)} · carpeta {favorito.folder} · prioridad{" "}
-                        {favorito.priority}/3
-                      </p>
-                      {favorito.notes && <p className="mt-1 text-xs italic text-slate-300">“{favorito.notes}”</p>}
-                    </div>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/dashboard/winning-products/${favorito.product.id}`}>Abrir ficha</Link>
-                    </Button>
                   </div>
                 ))
               )}

@@ -391,6 +391,21 @@ export const TABLES = [
     indexes: [["userId"]],
   },
   {
+    name: "SavedRealProduct",
+    columns: [
+      { name: "id", type: "text", pk: true },
+      { name: "userId", type: "text", references: { table: "User", onDelete: "Cascade" } },
+      { name: "clave", type: "text" },
+      { name: "titulo", type: "text" },
+      { name: "nicho", type: "text" },
+      { name: "imagen", type: "text", nullable: true },
+      { name: "notes", type: "text", nullable: true },
+      { name: "createdAt", type: "datetime", default: now },
+    ],
+    uniques: [["userId", "clave"]],
+    indexes: [["userId"]],
+  },
+  {
     name: "TrackedStore",
     columns: [
       { name: "id", type: "text", pk: true },
@@ -466,6 +481,8 @@ export const TABLES = [
       { name: "id", type: "text", pk: true },
       { name: "userId", type: "text", references: { table: "User", onDelete: "Cascade" } },
       { name: "productId", type: "text", nullable: true, references: { table: "Product", onDelete: "SetNull" } },
+      { name: "productoRealClave", type: "text", nullable: true },
+      { name: "productoRealTitulo", type: "text", nullable: true },
       { name: "tool", type: "enum:AiToolType" },
       { name: "provider", type: "enum:AiProvider" },
       { name: "model", type: "text" },

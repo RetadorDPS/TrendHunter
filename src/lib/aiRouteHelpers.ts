@@ -1,8 +1,8 @@
 import { analyzeProduct, generateAdCopies, generateBuyerPersona, generateStoreNames, generateVideoScript } from "@/lib/ai";
-import { getProductDetail } from "@/lib/dal";
+import { agruparProductosReales, getProductDetail } from "@/lib/dal";
 import { toJsonInput } from "@/lib/json";
 import { checkAndConsume } from "@/lib/planLimits";
-import type { PlanType } from "@/types";
+import type { PlanType, ProductoRealParaIA } from "@/types";
 
 /**
  * Utilidades compartidas por las rutas del AI Studio.
@@ -26,14 +26,45 @@ export const CONSUMO_IA = {
   },
 
   /**
-   * Ejecuta la herramienta solicitada.
-   * Las herramientas que requieren producto cargan su detalle desde la base
-   * de datos para alimentar el prompt con datos reales.
+   * Resuelve un producto REAL a partir de su clave ("nicho::títuloNormalizado"),
+   * volviendo a agrupar los productos reales de ese nicho y buscando la
+   * clave exacta. Nunca se fía de datos que mande el cliente: el título, el
+   * precio y cuántas tiendas lo venden se comprueban aquí, en vivo.
    */
-  async ejecutar(tool: string, productId: string | undefined, options: Record<string, unknown>) {
+  async resolverProductoReal(claveReal: string): Promise<ProductoRealParaIA | null> {
+    const nicho = claveReal.split("::")[0];
+    if (!nicho) return null;
+    const grupo = (await agruparProductosReales(nicho)).find((producto) => producto.id === claveReal);
+    if (!grupo) return null;
+    return {
+      esReal: true,
+      clave: grupo.id,
+      title: grupo.titulo,
+      nicheTag: grupo.nicho,
+      suggestedSellPrice: grupo.precioMin,
+      vendedoresReales: grupo.vendedoresReales,
+      tiendasDominios: grupo.tiendas.map((tienda) => tienda.dominio),
+    };
+  },
+
+  /**
+   * Ejecuta la herramienta solicitada, sobre un producto del catálogo de
+   * ejemplo (`productId`) o sobre un producto REAL (`claveReal`).
+   */
+  async ejecutar(
+    tool: string,
+    referencia: { productId?: string; claveReal?: string },
+    options: Record<string, unknown>,
+  ) {
+    const { productId, claveReal } = referencia;
+
     // Las herramientas de nombres de tienda pueden funcionar sin producto.
     if (tool === "STORE_NAMES") {
-      const producto = productId ? (await getProductDetail(productId))?.product ?? null : null;
+      const producto = claveReal
+        ? await this.resolverProductoReal(claveReal)
+        : productId
+          ? (await getProductDetail(productId))?.product ?? null
+          : null;
       return generateStoreNames(
         {
           nicho: String(options.nicho ?? producto?.nicheTag ?? "e-commerce"),
@@ -45,10 +76,16 @@ export const CONSUMO_IA = {
       );
     }
 
-    if (!productId) throw new Error("Esta herramienta necesita un producto de referencia.");
-    const detalle = await getProductDetail(productId);
-    if (!detalle) throw new Error("El producto indicado no existe.");
-    const producto = detalle.product;
+    let producto;
+    if (claveReal) {
+      producto = await this.resolverProductoReal(claveReal);
+      if (!producto) throw new Error("El producto real indicado ya no está disponible. Vuelve a guardarlo.");
+    } else {
+      if (!productId) throw new Error("Esta herramienta necesita un producto de referencia.");
+      const detalle = await getProductDetail(productId);
+      if (!detalle) throw new Error("El producto indicado no existe.");
+      producto = detalle.product;
+    }
 
     switch (tool) {
       case "AD_COPY":
