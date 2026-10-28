@@ -5,8 +5,9 @@ import { errorApi, preflightApi, respuestaApi } from "@/lib/apiV1";
 /**
  * GET /api/v1/estadisticas
  *
- * KPIs agregados del catálogo: productos, oportunidades doradas, saturación por
- * nivel y reparto por categoría. No expone datos de usuarios.
+ * KPIs agregados de datos reales: tiendas Shopify analizadas, productos reales
+ * a la venta, anuncios reales de Meta y reparto por nicho. Nada estimado ni
+ * de demostración. No expone datos de usuarios.
  */
 export const dynamic = "force-dynamic";
 
@@ -22,21 +23,16 @@ export async function GET(request: Request) {
 
   return respuestaApi(
     {
-      productosActivos: estadisticas.productos,
-      oportunidadesDoradas: estadisticas.dorados,
-      anuncios: estadisticas.anuncios,
-      tiendas: estadisticas.tiendas,
-      proveedores: estadisticas.proveedores,
-      trendScoreMedio: estadisticas.scoreMedio,
-      margenMedioPct: estadisticas.margenMedio,
-      facturacionMensualEstimada: estadisticas.facturacionTotal,
-      saturacion: estadisticas.saturacion,
-      porCategoria: estadisticas.porCategoria,
+      tiendasReales: estadisticas.tiendasReales,
+      productosReales: estadisticas.productosReales,
+      anunciosReales: estadisticas.anunciosReales,
+      nichos: estadisticas.nichos,
+      ultimaLectura: estadisticas.ultimaLectura,
     },
     {
       clave: auth.contexto.clave.prefijo,
       procedencia:
-        "Facturación y margen son estimaciones del motor interno (tipo ESTIMADO). El catálogo indica por producto la fuente y la fecha de cada métrica.",
+        "Todo sale de tiendas Shopify reales leídas de su catálogo público y de anuncios reales de la Biblioteca de Anuncios de Meta. Nada estimado ni de demostración.",
     },
     200,
     auth.contexto.cabeceras,

@@ -17,13 +17,12 @@ import {
   Truck,
   Zap,
 } from "lucide-react";
-import { getDashboardStats, getTopProducts } from "@/lib/dal";
+import { getDashboardStats, listProductosRealesPorNicho } from "@/lib/dal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendScoreRing } from "@/components/domain/trend-score-ring";
 import { DASHBOARD_NAV, DEMO_EMAIL, DEMO_PASSWORD, PLANS } from "@/lib/constants";
-import { formatCompactNumber, formatCurrency, formatCurrencyPrecise } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
 export const metadata = {
   title: "TrendHunter Pro · Encuentra productos ganadores con datos verificables",
@@ -51,13 +50,13 @@ const ICONOS_MODULO: Record<string, React.ComponentType<{ className?: string }>>
  * que la portada no sea un escaparate vacío.
  */
 export default async function LandingPage() {
-  const [stats, destacados] = await Promise.all([getDashboardStats(), getTopProducts(3)]);
+  const [stats, destacados] = await Promise.all([getDashboardStats(), listProductosRealesPorNicho(undefined, 3)]);
 
   const metricas = [
-    { valor: stats.productos, etiqueta: "productos analizados", icono: BarChart3 },
-    { valor: stats.anuncios, etiqueta: "anuncios vigilados", icono: Megaphone },
-    { valor: stats.tiendas, etiqueta: "tiendas Shopify en el radar", icono: Store },
-    { valor: stats.dorados, etiqueta: "oportunidades doradas activas", icono: Flame },
+    { valor: stats.productosReales, etiqueta: "productos reales a la venta", icono: BarChart3 },
+    { valor: stats.anunciosReales, etiqueta: "anuncios reales vigilados", icono: Megaphone },
+    { valor: stats.tiendasReales, etiqueta: "tiendas Shopify reales analizadas", icono: Store },
+    { valor: stats.nichos.length, etiqueta: "nichos con datos reales", icono: Flame },
   ];
 
   return (
@@ -163,67 +162,73 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* --- Productos destacados (datos reales) --- */}
+      {/* --- Productos reales --- */}
       <section id="productos" className="mx-auto max-w-6xl px-4 py-16">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Oportunidades del catálogo</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Productos reales, ahora mismo</h2>
             <p className="mt-2 max-w-2xl text-muted-foreground">
-              Score medio actual de {stats.scoreMedio}/100 y un margen bruto medio del {stats.margenMedio} %. Estos son
-              los productos con mejor combinación de demanda, velocidad y baja competencia. Cada ficha indica si sus
-              datos están <strong className="text-foreground">verificados</strong> por fuentes externas o siguen siendo
-              una <strong className="text-foreground">estimación</strong> del motor interno.
+              Leídos del catálogo público de tiendas Shopify reales que analizamos de verdad: título, precio y
+              disponibilidad exactos, con la tienda de origen y cuándo los vimos por última vez. Nada estimado, nada
+              inventado.
             </p>
           </div>
           <Button asChild variant="outline" className="gap-2">
             <Link href="/dashboard/winning-products">
-              Ver los {stats.productos} productos
+              Ver los {stats.productosReales} productos reales
               <ArrowRight className="size-4" />
             </Link>
           </Button>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
-          {destacados.map((producto) => (
-            <Card
-              key={producto.id}
-              className="group overflow-hidden transition-shadow hover:border-indigo-500/40 hover:shadow-xl hover:shadow-indigo-950/30"
-            >
-              <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
-                <Image
-                  src={producto.mainImage}
-                  alt={producto.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/10 to-transparent" />
-                <div className="absolute bottom-3 right-3 rounded-full bg-slate-950/70 p-1 backdrop-blur">
-                  <TrendScoreRing score={producto.trendScore} size={54} strokeWidth={5} />
+        {destacados.length === 0 ? (
+          <Card className="border-border/60 bg-surface/40 p-8 text-center text-muted-foreground">
+            Todavía no hay tiendas reales analizadas.
+          </Card>
+        ) : (
+          <div className="grid gap-5 md:grid-cols-3">
+            {destacados.map((producto) => (
+              <a
+                key={producto.id}
+                href={producto.urlProducto ?? `https://${producto.tienda.dominio}`}
+                target="_blank"
+                rel="noreferrer"
+                className="group overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-shadow hover:border-indigo-500/40 hover:shadow-xl hover:shadow-indigo-950/30"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
+                  {producto.imagen && (
+                    <Image
+                      src={producto.imagen}
+                      alt={producto.titulo}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/10 to-transparent" />
+                  <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                    {producto.nuevo && (
+                      <Badge variant="success" className="w-fit text-[10px]">
+                        Nuevo
+                      </Badge>
+                    )}
+                    <span className="text-[11px] font-medium text-slate-300">{producto.tienda.nicho}</span>
+                  </div>
                 </div>
-                <div className="absolute bottom-3 left-3 flex flex-col gap-1">
-                  <Badge variant="secondary" className="w-fit text-[10px]">
-                    {producto.category}
-                  </Badge>
-                  <span className="text-[11px] font-medium text-slate-300">{producto.nicheTag}</span>
-                </div>
-              </div>
-              <CardContent className="space-y-2 p-4">
-                <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{producto.title}</h3>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    Margen <span className="font-medium text-emerald-400">{producto.estimatedMargin.toFixed(0)} %</span>
-                  </span>
-                  <span>{formatCurrencyPrecise(producto.suggestedSellPrice)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatCompactNumber(producto.tiktokViews)} visualizaciones en TikTok ·{" "}
-                  {producto.storesUsing} tiendas vendiéndolo
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <CardContent className="space-y-2 p-4">
+                  <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{producto.titulo}</h3>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="truncate">{producto.tienda.dominio}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(producto.precio)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Visto {formatRelativeTime(producto.vistoUltimaVez)}
+                  </p>
+                </CardContent>
+              </a>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* --- Módulos --- */}
@@ -313,17 +318,16 @@ export default async function LandingPage() {
 
           <Card className="border-border/70 bg-surface/40">
             <CardContent className="space-y-4 p-6">
-              <p className="text-sm font-medium text-slate-100">Resumen del mercado ahora mismo</p>
+              <p className="text-sm font-medium text-slate-100">Lo que hemos leído de verdad, ahora mismo</p>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <DatoMercado etiqueta="Score medio" valor={`${stats.scoreMedio}/100`} />
-                <DatoMercado etiqueta="Margen medio" valor={`${stats.margenMedio} %`} />
-                <DatoMercado etiqueta="Facturación agregada" valor={formatCurrency(stats.facturacionTotal)} />
-                <DatoMercado etiqueta="Proveedores evaluados" valor={String(stats.proveedores)} />
-                <DatoMercado etiqueta="Productos saturados" valor={String(stats.saturacion.find((f) => f.nivel === "HIGH")?.cantidad ?? 0)} />
-                <DatoMercado etiqueta="Categorías activas" valor={String(stats.porCategoria.length)} />
+                <DatoMercado etiqueta="Tiendas reales" valor={String(stats.tiendasReales)} />
+                <DatoMercado etiqueta="Productos reales" valor={String(stats.productosReales)} />
+                <DatoMercado etiqueta="Anuncios reales (Meta)" valor={String(stats.anunciosReales)} />
+                <DatoMercado etiqueta="Nichos con datos reales" valor={String(stats.nichos.length)} />
               </div>
               <p className="text-xs text-muted-foreground">
-                Datos calculados en vivo desde la base de datos de la plataforma (se actualizan con cada análisis).
+                Contado en vivo desde la base de datos de la plataforma: cada número es una fila real, no una
+                estimación.
               </p>
             </CardContent>
           </Card>

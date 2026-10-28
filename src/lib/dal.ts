@@ -3,10 +3,12 @@ import { parseJsonArray, parseJsonObject } from "@/lib/utils";
 import type {
   AdDTO,
   AdFilters,
+  NichoRealDTO,
   NotificationDTO,
   PaginatedResult,
   ProductDTO,
   ProductFilters,
+  ProductoRealDTO,
   StoreChangeDTO,
   StoreDTO,
   StoreProductDTO,
@@ -320,15 +322,6 @@ export async function getProductDetail(id: string) {
 }
 
 /** Productos destacados para el panel general (los de mayor score). */
-export async function getTopProducts(limite = 6): Promise<ProductDTO[]> {
-  const productos = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: [{ isGoldenOpportunity: "desc" }, { trendScore: "desc" }],
-    take: limite,
-  });
-  return productos.map(toProductDTO);
-}
-
 /** Lista de nichos con su número de productos (para los filtros). */
 export async function getNiches(): Promise<Array<{ niche: string; count: number }>> {
   const grupos = await prisma.product.groupBy({ by: ["nicheTag"], _count: { _all: true }, orderBy: { nicheTag: "asc" } });
@@ -342,6 +335,9 @@ export async function getNiches(): Promise<Array<{ niche: string; count: number 
 /** Biblioteca de anuncios con filtros por plataforma, nicho, país y engagement. */
 export async function listAds(filtros: AdFilters = {}): Promise<AdDTO[]> {
   const where = {
+    // Solo anuncios reales de la Biblioteca de Anuncios de Meta: los de
+    // demostración nunca se mezclan en la cuadrícula.
+    origen: "meta-ad-library",
     ...(filtros.platform && filtros.platform !== "ALL" ? { platform: filtros.platform } : {}),
     ...(filtros.niche && filtros.niche !== "ALL" ? { nicheTag: filtros.niche } : {}),
     ...(typeof filtros.minEngagement === "number" ? { engagementRate: { gte: filtros.minEngagement } } : {}),
@@ -371,18 +367,23 @@ export async function listAds(filtros: AdFilters = {}): Promise<AdDTO[]> {
   return anuncios.map((anuncio) => toAdDTO(anuncio));
 }
 
-/** Nichos presentes en la biblioteca de anuncios. */
+/** Nichos presentes en anuncios reales (nunca en los de demostración). */
 export async function getAdNiches(): Promise<string[]> {
-  const grupos = await prisma.ad.groupBy({ by: ["nicheTag"], orderBy: { nicheTag: "asc" } });
+  const grupos = await prisma.ad.groupBy({
+    by: ["nicheTag"],
+    where: { origen: "meta-ad-library" },
+    orderBy: { nicheTag: "asc" },
+  });
   return grupos.map((grupo) => grupo.nicheTag);
 }
 
-/** Estadísticas agregadas para las tarjetas resumen de Ads Spy. */
+/** Estadísticas agregadas para las tarjetas resumen de Ads Spy (solo anuncios reales). */
 export async function getAdStats() {
+  const where = { origen: "meta-ad-library" };
   const [total, porPlataforma, masLargo] = await Promise.all([
-    prisma.ad.count(),
-    prisma.ad.groupBy({ by: ["platform"], _count: { _all: true } }),
-    prisma.ad.findFirst({ orderBy: { daysActive: "desc" }, select: { daysActive: true, headline: true, advertiserName: true } }),
+    prisma.ad.count({ where }),
+    prisma.ad.groupBy({ by: ["platform"], where, _count: { _all: true } }),
+    prisma.ad.findFirst({ where, orderBy: { daysActive: "desc" }, select: { daysActive: true, headline: true, advertiserName: true } }),
   ]);
   return {
     total,
@@ -395,9 +396,15 @@ export async function getAdStats() {
 //  Consultas de tiendas
 // ---------------------------------------------------------------------------
 
-/** Tiendas del radar con sus productos más vendidos. */
+/**
+ * Tiendas del radar con sus productos más vendidos.
+ *
+ * Solo tiendas leídas de verdad del catálogo público (`origen: "ingesta"`):
+ * las de demostración nunca se sugieren como si fueran tiendas reales.
+ */
 export async function listStores(limite = 12): Promise<StoreDTO[]> {
   const tiendas = await prisma.store.findMany({
+    where: { origen: "ingesta" },
     orderBy: { estimatedMonthlyRevenue: "desc" },
     include: { storeProducts: { orderBy: { salesRank: "asc" }, take: 5 } },
     take: limite,
@@ -405,10 +412,14 @@ export async function listStores(limite = 12): Promise<StoreDTO[]> {
   return tiendas.map(toStoreDTO);
 }
 
-/** Tiendas que coinciden con un texto (nombre, dominio o nicho). Para el buscador global. */
+/**
+ * Tiendas reales que coinciden con un texto (nombre, dominio o nicho).
+ * Para el buscador global; nunca devuelve tiendas de demostración.
+ */
 export async function searchStores(busqueda: string, limite = 5): Promise<StoreDTO[]> {
   const tiendas = await prisma.store.findMany({
     where: {
+      origen: "ingesta",
       OR: [
         { name: { contains: busqueda } },
         { domain: { contains: busqueda } },
@@ -420,6 +431,102 @@ export async function searchStores(busqueda: string, limite = 5): Promise<StoreD
     take: limite,
   });
   return tiendas.map(toStoreDTO);
+}
+
+/** Nichos con tiendas reales ya analizadas, con cuántas tiendas y productos reales hay en cada uno. */
+export async function listNichosReales(): Promise<NichoRealDTO[]> {
+  const tiendas = await prisma.store.findMany({
+    where: { origen: "ingesta" },
+    select: { niche: true, _count: { select: { storeProducts: true } } },
+  });
+
+  const porNicho = new Map<string, { tiendas: number; productos: number }>();
+  for (const tienda of tiendas) {
+    const actual = porNicho.get(tienda.niche) ?? { tiendas: 0, productos: 0 };
+    actual.tiendas += 1;
+    actual.productos += tienda._count.storeProducts;
+    porNicho.set(tienda.niche, actual);
+  }
+
+  return [...porNicho.entries()]
+    .map(([nicho, datos]) => ({ nicho, ...datos }))
+    .sort((a, b) => b.productos - a.productos);
+}
+
+/**
+ * Productos reales (de tiendas con catálogo público leído de verdad),
+ * opcionalmente filtrados por nicho. Nada de score ni margen inventado: solo
+ * lo que la tienda publica (título, precio, disponibilidad) y cuándo se leyó.
+ */
+export async function listProductosRealesPorNicho(nicho?: string, limite = 24): Promise<ProductoRealDTO[]> {
+  const desde14Dias = new Date(Date.now() - 14 * 86_400_000);
+
+  const [productos, lanzamientos] = await Promise.all([
+    prisma.storeProduct.findMany({
+      where: {
+        available: true,
+        store: { origen: "ingesta", ...(nicho ? { niche: nicho } : {}) },
+      },
+      orderBy: { lastSeenAt: "desc" },
+      take: limite,
+      include: { store: { select: { id: true, name: true, domain: true, niche: true, country: true } } },
+    }),
+    prisma.storeChange.findMany({
+      where: { type: "NEW_PRODUCT", detectedAt: { gte: desde14Dias }, store: { origen: "ingesta" } },
+      select: { productTitle: true, storeId: true },
+    }),
+  ]);
+
+  const recientes = new Set(lanzamientos.map((l) => `${l.storeId}::${l.productTitle}`));
+
+  return productos.map((producto) => ({
+    id: producto.id,
+    titulo: producto.title,
+    imagen: producto.image,
+    precio: producto.price,
+    precioComparado: producto.comparePrice,
+    moneda: producto.currency,
+    disponible: producto.available,
+    urlProducto: producto.productUrl,
+    tienda: {
+      id: producto.store.id,
+      nombre: producto.store.name,
+      dominio: producto.store.domain,
+      nicho: producto.store.niche,
+      pais: producto.store.country,
+    },
+    vistoUltimaVez: producto.lastSeenAt.toISOString(),
+    nuevo: recientes.has(`${producto.storeId}::${producto.title}`),
+  }));
+}
+
+/** Busca productos reales por título. Para el buscador global. */
+export async function buscarProductosReales(busqueda: string, limite = 5): Promise<ProductoRealDTO[]> {
+  const productos = await prisma.storeProduct.findMany({
+    where: { available: true, title: { contains: busqueda }, store: { origen: "ingesta" } },
+    orderBy: { lastSeenAt: "desc" },
+    take: limite,
+    include: { store: { select: { id: true, name: true, domain: true, niche: true, country: true } } },
+  });
+  return productos.map((producto) => ({
+    id: producto.id,
+    titulo: producto.title,
+    imagen: producto.image,
+    precio: producto.price,
+    precioComparado: producto.comparePrice,
+    moneda: producto.currency,
+    disponible: producto.available,
+    urlProducto: producto.productUrl,
+    tienda: {
+      id: producto.store.id,
+      nombre: producto.store.name,
+      dominio: producto.store.domain,
+      nicho: producto.store.niche,
+      pais: producto.store.country,
+    },
+    vistoUltimaVez: producto.lastSeenAt.toISOString(),
+    nuevo: false,
+  }));
 }
 
 /** Detalle de una tienda con su timeline de cambios. */
@@ -470,7 +577,9 @@ export async function listTrackedStores(userId: string) {
 /** Timeline agregado de todas las tiendas seguidas por un usuario. */
 export async function listTrackedStoresTimeline(userId: string, limite = 25): Promise<StoreChangeDTO[]> {
   const eventos = await prisma.storeChange.findMany({
-    where: { store: { trackedBy: { some: { userId } } } },
+    // Solo cambios detectados de verdad en tiendas reales: los de las
+    // tiendas de demostración están escritos a mano, no detectados.
+    where: { store: { origen: "ingesta", trackedBy: { some: { userId } } } },
     include: { store: { select: { name: true } } },
     orderBy: { detectedAt: "desc" },
     take: limite,
@@ -544,70 +653,49 @@ export async function countUnreadNotifications(userId: string): Promise<number> 
 // ---------------------------------------------------------------------------
 
 /** Métricas resumen que alimentan las tarjetas y gráficas del dashboard. */
+/**
+ * Estadísticas del panel: solo cuenta lo real (tiendas leídas de su catálogo
+ * público, productos reales a la venta, anuncios de la Biblioteca de Meta).
+ * Nada de score, margen o facturación inventados.
+ */
 export async function getDashboardStats() {
-  const [productos, dorados, anuncios, tiendas, proveedores, usuarios] = await Promise.all([
-    prisma.product.count({ where: { status: "ACTIVE" } }),
-    prisma.product.count({ where: { isGoldenOpportunity: true } }),
-    prisma.ad.count(),
-    prisma.store.count(),
-    prisma.supplier.count(),
+  const [tiendasReales, productosReales, anunciosReales, usuarios, nichos] = await Promise.all([
+    prisma.store.count({ where: { origen: "ingesta" } }),
+    prisma.storeProduct.count({ where: { available: true, store: { origen: "ingesta" } } }),
+    prisma.ad.count({ where: { origen: "meta-ad-library" } }),
     prisma.user.count(),
-  ]);
-
-  const [verificados, conMedicion] = await Promise.all([
-    prisma.product.count({ where: { status: "ACTIVE", nivelConfianza: "VERIFICADO" } }),
-    prisma.product.count({ where: { status: "ACTIVE", fuentesMedidas: { gt: 0 } } }),
+    listNichosReales(),
   ]);
 
   // Variación real mes a mes (nada de porcentajes escritos a mano).
   const hace30 = new Date(Date.now() - 30 * 86_400_000);
   const hace60 = new Date(Date.now() - 60 * 86_400_000);
-  const [productosUltimoMes, productosMesAnterior, anunciosUltimoMes, anunciosMesAnterior] = await Promise.all([
-    prisma.product.count({ where: { status: "ACTIVE", createdAt: { gte: hace30 } } }),
-    prisma.product.count({ where: { status: "ACTIVE", createdAt: { gte: hace60, lt: hace30 } } }),
-    prisma.ad.count({ where: { createdAt: { gte: hace30 } } }),
-    prisma.ad.count({ where: { createdAt: { gte: hace60, lt: hace30 } } }),
+  const [tiendasUltimoMes, tiendasMesAnterior, productosUltimoMes, productosMesAnterior] = await Promise.all([
+    prisma.store.count({ where: { origen: "ingesta", createdAt: { gte: hace30 } } }),
+    prisma.store.count({ where: { origen: "ingesta", createdAt: { gte: hace60, lt: hace30 } } }),
+    prisma.storeProduct.count({ where: { store: { origen: "ingesta" }, detectedAt: { gte: hace30 } } }),
+    prisma.storeProduct.count({ where: { store: { origen: "ingesta" }, detectedAt: { gte: hace60, lt: hace30 } } }),
   ]);
 
   /** Variación porcentual; `null` si no hay base con la que comparar. */
   const variacion = (actual: number, anterior: number): number | null =>
     anterior > 0 ? Math.round(((actual - anterior) / anterior) * 1000) / 10 : null;
 
-  const [scoreMedio, facturacionTotal, saturacion] = await Promise.all([
-    prisma.product.aggregate({ _avg: { trendScore: true, estimatedMargin: true } }),
-    prisma.product.aggregate({ _sum: { estimatedMonthlyRevenue: true } }),
-    prisma.product.groupBy({ by: ["saturationLevel"], _count: { _all: true } }),
-  ]);
-
-  const porCategoria = await prisma.product.groupBy({
-    by: ["category"],
-    _count: { _all: true },
-    _avg: { trendScore: true, estimatedMargin: true },
+  const ultimaLectura = await prisma.store.findFirst({
+    where: { origen: "ingesta" },
+    orderBy: { lastScannedAt: "desc" },
+    select: { lastScannedAt: true },
   });
 
   return {
-    productos,
-    dorados,
-    anuncios,
-    tiendas,
-    proveedores,
+    tiendasReales,
+    productosReales,
+    anunciosReales,
     usuarios,
-    verificados,
-    conMedicion,
+    nichos,
+    variacionTiendas: variacion(tiendasUltimoMes, tiendasMesAnterior),
     variacionProductos: variacion(productosUltimoMes, productosMesAnterior),
-    variacionAnuncios: variacion(anunciosUltimoMes, anunciosMesAnterior),
-    scoreMedio: Math.round(scoreMedio._avg.trendScore ?? 0),
-    margenMedio: Math.round((scoreMedio._avg.estimatedMargin ?? 0) * 10) / 10,
-    facturacionTotal: facturacionTotal._sum.estimatedMonthlyRevenue ?? 0,
-    saturacion: saturacion.map((fila) => ({ nivel: fila.saturationLevel, cantidad: fila._count._all })),
-    porCategoria: porCategoria
-      .map((fila) => ({
-        categoria: fila.category,
-        cantidad: fila._count._all,
-        scoreMedio: Math.round(fila._avg.trendScore ?? 0),
-        margenMedio: Math.round((fila._avg.estimatedMargin ?? 0) * 10) / 10,
-      }))
-      .sort((a, b) => b.cantidad - a.cantidad),
+    ultimaLectura: ultimaLectura?.lastScannedAt?.toISOString() ?? null,
   };
 }
 

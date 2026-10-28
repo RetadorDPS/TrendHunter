@@ -216,6 +216,33 @@ export interface StoreProductDTO {
   productUrl?: string | null;
 }
 
+/**
+ * Producto real: una fila de `StoreProduct` leída del catálogo público de una
+ * tienda Shopify de verdad (`Store.origen = "ingesta"`). Nada de esto se
+ * calcula ni se inventa: título, precio y disponibilidad son los que la
+ * tienda publica ahora mismo.
+ */
+export interface ProductoRealDTO {
+  id: string;
+  titulo: string;
+  imagen: string | null;
+  precio: number;
+  precioComparado: number | null;
+  moneda: string;
+  disponible: boolean;
+  urlProducto: string | null;
+  tienda: { id: string; nombre: string; dominio: string; nicho: string; pais: string };
+  vistoUltimaVez: string;
+  nuevo: boolean;
+}
+
+/** Resumen de un nicho con tiendas reales ya analizadas. */
+export interface NichoRealDTO {
+  nicho: string;
+  tiendas: number;
+  productos: number;
+}
+
 /** Resultado del análisis de una tienda (Shop Analyzer). */
 export interface StoreAnalysisResult {
   store: StoreDTO;
