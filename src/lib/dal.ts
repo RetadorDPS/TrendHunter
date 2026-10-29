@@ -503,16 +503,22 @@ export async function registrarSnapshotNicho(nicho: string): Promise<void> {
   if (grupos.length === 0) return;
   const dia = diaDeHoy();
 
-  await prisma.snapshotProductoReal.deleteMany({ where: { nicho, dia } });
-  await prisma.snapshotProductoReal.createMany({
-    data: grupos.map((grupo) => ({
-      clave: grupo.id,
-      nicho,
-      dia,
-      vendedoresReales: grupo.vendedoresReales,
-      precioMin: grupo.precioMin,
-    })),
-  });
+  try {
+    await prisma.snapshotProductoReal.deleteMany({ where: { nicho, dia } });
+    await prisma.snapshotProductoReal.createMany({
+      data: grupos.map((grupo) => ({
+        clave: grupo.id,
+        nicho,
+        dia,
+        vendedoresReales: grupo.vendedoresReales,
+        precioMin: grupo.precioMin,
+      })),
+    });
+  } catch {
+    // Defensivo: si el cron corre antes de que se ejecute la migración de
+    // esta tabla, no se pierde la ingesta por esto — simplemente no queda
+    // snapshot de hoy, y se recupera sola en la siguiente corrida.
+  }
 }
 
 /**
@@ -523,11 +529,17 @@ export async function registrarSnapshotNicho(nicho: string): Promise<void> {
  * tendencia sin historial real detrás.
  */
 async function obtenerTendenciasNicho(nicho: string): Promise<Map<string, TendenciaRealDTO>> {
-  const snapshots = await prisma.snapshotProductoReal.findMany({
-    where: { nicho },
-    orderBy: { dia: "asc" },
-    select: { clave: true, dia: true, vendedoresReales: true },
-  });
+  // Defensivo: si la migración de `SnapshotProductoReal` todavía no se ha
+  // ejecutado en esta base (p. ej. justo tras desplegar, antes de correr la
+  // migración), no hay tendencia que calcular — no se rompe el build ni la
+  // página, simplemente no hay dato todavía.
+  const snapshots = await prisma.snapshotProductoReal
+    .findMany({
+      where: { nicho },
+      orderBy: { dia: "asc" },
+      select: { clave: true, dia: true, vendedoresReales: true },
+    })
+    .catch(() => []);
 
   const porClave = new Map<string, typeof snapshots>();
   for (const fila of snapshots) {
