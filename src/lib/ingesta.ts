@@ -134,6 +134,25 @@ function inicioDelDia(fecha: Date = new Date()): Date {
 const enCurso = new Set<string>();
 
 /**
+ * Lanza `tarea` sobre cada elemento con como mucho `concurrencia` a la vez.
+ *
+ * Una tienda real puede tener varios cientos de productos; escribirlos uno a
+ * uno (un viaje de red por fila) es lo que hacía que ingerir una sola tienda
+ * tardara ~30s y que el cron no llegara ni a 3 tiendas en el límite de 60s de
+ * la función. En lotes concurrentes el tiempo pasa a depender del lote más
+ * lento, no de la suma de todos — mismas escrituras, mismo resultado.
+ */
+async function ejecutarEnLotes<T>(
+  items: T[],
+  concurrencia: number,
+  tarea: (item: T) => Promise<void>,
+): Promise<void> {
+  for (let i = 0; i < items.length; i += concurrencia) {
+    await Promise.all(items.slice(i, i + concurrencia).map(tarea));
+  }
+}
+
+/**
  * Ingiere el catálogo de una tienda real.
  *
  * Es la función que usa la interfaz y el cron. Puede inyectarse `catalogo`
@@ -290,34 +309,36 @@ export async function guardarCatalogo(
   let cambiosDePrecio = 0;
   let agotados = 0;
 
-  for (const producto of catalogo.productos) {
+  await ejecutarEnLotes(catalogo.productos, 20, async (producto) => {
     const previo =
       porExterno.get(producto.idExterno) ?? porTitulo.get(producto.titulo.trim().toLowerCase());
 
     if (!previo) {
-      const creado = await prisma.storeProduct.create({
-        data: {
-          storeId: tienda.id,
-          externalId: producto.idExterno,
-          title: producto.titulo,
-          image: producto.imagen,
-          price: producto.precio,
-          comparePrice: producto.precioComparativo,
-          currency: producto.moneda,
-          productUrl: producto.url,
-          available: producto.disponible,
-          detectedAt: ahora,
-          lastSeenAt: ahora,
-        },
-        select: { id: true },
-      });
+      const [creado] = await Promise.all([
+        prisma.storeProduct.create({
+          data: {
+            storeId: tienda.id,
+            externalId: producto.idExterno,
+            title: producto.titulo,
+            image: producto.imagen,
+            price: producto.precio,
+            comparePrice: producto.precioComparativo,
+            currency: producto.moneda,
+            productUrl: producto.url,
+            available: producto.disponible,
+            detectedAt: ahora,
+            lastSeenAt: ahora,
+          },
+          select: { id: true },
+        }),
+        prisma.priceHistory.create({
+          data: { storeId: tienda.id, title: producto.titulo, price: producto.precio, capturedAt: ahora },
+        }),
+      ]);
       vistos.add(creado.id);
       nuevos += 1;
       cambios.push({ tipo: "nuevo", titulo: producto.titulo, precioAhora: producto.precio, impacto: 40 });
-      await prisma.priceHistory.create({
-        data: { storeId: tienda.id, title: producto.titulo, price: producto.precio, capturedAt: ahora },
-      });
-      continue;
+      return;
     }
 
     vistos.add(previo.id);
@@ -335,9 +356,6 @@ export async function guardarCatalogo(
         precioAhora: producto.precio,
         impacto: impactoDePrecio(previo.price, producto.precio),
       });
-      await prisma.priceHistory.create({
-        data: { storeId: tienda.id, title: producto.titulo, price: producto.precio, capturedAt: ahora },
-      });
     }
 
     if (pasoAAgotado) {
@@ -350,33 +368,40 @@ export async function guardarCatalogo(
       });
     }
 
-    await prisma.storeProduct.update({
-      where: { id: previo.id },
-      data: {
-        externalId: producto.idExterno,
-        title: producto.titulo,
-        image: producto.imagen ?? undefined,
-        price: producto.precio,
-        comparePrice: producto.precioComparativo,
-        currency: producto.moneda,
-        productUrl: producto.url,
-        available: producto.disponible,
-        lastSeenAt: ahora,
-      },
-    });
-  }
+    await Promise.all([
+      prisma.storeProduct.update({
+        where: { id: previo.id },
+        data: {
+          externalId: producto.idExterno,
+          title: producto.titulo,
+          image: producto.imagen ?? undefined,
+          price: producto.precio,
+          comparePrice: producto.precioComparativo,
+          currency: producto.moneda,
+          productUrl: producto.url,
+          available: producto.disponible,
+          lastSeenAt: ahora,
+        },
+      }),
+      cambioPrecio
+        ? prisma.priceHistory.create({
+            data: { storeId: tienda.id, title: producto.titulo, price: producto.precio, capturedAt: ahora },
+          })
+        : Promise.resolve(),
+    ]);
+  });
 
   // --- 3. Productos que han desaparecido del catálogo -----------------------
   // Solo si se ha leído el catálogo ENTERO: si se cortó a 250 de 900, no
   // aparecer no significa nada.
   let desaparecidos = 0;
   if (catalogo.completo) {
-    for (const fila of previos) {
-      if (vistos.has(fila.id) || !fila.available) continue;
-      desaparecidos += 1;
+    const idosDelCatalogo = previos.filter((fila) => !vistos.has(fila.id) && fila.available);
+    desaparecidos = idosDelCatalogo.length;
+    await ejecutarEnLotes(idosDelCatalogo, 20, async (fila) => {
       cambios.push({ tipo: "agotado", titulo: fila.title, precioAhora: fila.price, impacto: 45 });
       await prisma.storeProduct.update({ where: { id: fila.id }, data: { available: false } });
-    }
+    });
     agotados += desaparecidos;
   }
 
@@ -387,7 +412,7 @@ export async function guardarCatalogo(
   }
 
   // --- 5. Timeline ---------------------------------------------------------
-  for (const cambio of cambios.slice(0, 40)) {
+  await ejecutarEnLotes(cambios.slice(0, 40), 20, async (cambio) => {
     await prisma.storeChange.create({
       data: {
         storeId: tienda.id,
@@ -411,7 +436,7 @@ export async function guardarCatalogo(
         detectedAt: ahora,
       },
     });
-  }
+  });
 
   return {
     ok: true,
@@ -449,15 +474,18 @@ export async function emparejarTiendaConCatalogo(tiendaId: string): Promise<numb
   let emparejados = 0;
   const productosTocados = new Set<string>();
 
-  for (const fila of filas) {
-    const encontrado = mejorCoincidencia(fila.title, internos);
+  // La búsqueda de coincidencia es en memoria (CPU, no red); se calcula para
+  // todas las filas primero y solo las escrituras se lanzan en lotes.
+  const coincidencias = filas.map((fila) => ({ fila, encontrado: mejorCoincidencia(fila.title, internos) }));
+
+  await ejecutarEnLotes(coincidencias, 20, async ({ fila, encontrado }) => {
     if (!encontrado) {
       if (fila.productId) {
         // Antes casaba y ahora no: se quita el vínculo para no contar de más.
         await prisma.storeProduct.update({ where: { id: fila.id }, data: { productId: null } });
         productosTocados.add(fila.productId);
       }
-      continue;
+      return;
     }
     if (fila.productId !== encontrado.producto.id) {
       await prisma.storeProduct.update({
@@ -467,10 +495,10 @@ export async function emparejarTiendaConCatalogo(tiendaId: string): Promise<numb
     }
     productosTocados.add(encontrado.producto.id);
     emparejados += 1;
-  }
+  });
 
   // Recuento real de tiendas (solo tiendas leídas del catálogo público).
-  for (const productoId of productosTocados) {
+  await ejecutarEnLotes([...productosTocados], 10, async (productoId) => {
     const tiendas = await prisma.storeProduct.findMany({
       where: { productId: productoId, store: { origen: "ingesta" } },
       select: { storeId: true },
@@ -483,7 +511,7 @@ export async function emparejarTiendaConCatalogo(tiendaId: string): Promise<numb
         { fuente: "tiendas", valor: total, origen: "catalogo-shopify" },
       ]);
     }
-  }
+  });
 
   return emparejados;
 }
