@@ -23,5 +23,5 @@ jobs:
           curl -sS -X POST "${{ secrets.APP_URL }}/api/ingesta" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
-            -d '{"geo": "ES", "tendencias": true, "maxTiendas": 15}' \
+            -d '{"geo": "ES", "tendencias": true, "maxTiendas": 10}' \
             --max-time 600

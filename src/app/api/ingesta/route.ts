@@ -15,7 +15,7 @@ import { logger } from "@/lib/logger";
  *     "geo": "ES",                   // país de Google Trends
  *     "tendencias": true,            // leer también las tendencias del día
  *     "paginas": 3,                  // páginas del catálogo por tienda (1–4)
- *     "maxTiendas": 15,              // si no se pasan dominios (máx. 25)
+ *     "maxTiendas": 10,              // si no se pasan dominios (máx. 18)
  *     "nicho": "Mascotas",           // solo con un único dominio: fuerza el nicho
  *     "pais": "US"                   // solo con un único dominio: país de la tienda
  *   }

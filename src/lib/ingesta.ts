@@ -727,12 +727,11 @@ export async function ingerirTodo(
             where: { origen: "ingesta" },
             select: { domain: true },
             orderBy: { lastScannedAt: "asc" },
-            take: Math.min(Math.max(opciones.maxTiendas ?? 15, 1), 25),
+            take: Math.min(Math.max(opciones.maxTiendas ?? 10, 1), 18),
           })
         ).map((tienda) => tienda.domain);
 
   const tiendas: ResultadoIngestaTienda[] = [];
-  const nichosTocados = new Set<string>();
   for (const dominio of dominios) {
     const resultado = await ingerirTienda(dominio, { paginas: opciones.paginas });
     tiendas.push(resultado);
@@ -741,14 +740,14 @@ export async function ingerirTodo(
         where: { id: resultado.tiendaId },
         select: { niche: true },
       });
-      if (tienda) nichosTocados.add(tienda.niche);
+      // Foto del día justo tras cada tienda, no al final del lote: así, si la
+      // función se corta por tiempo a mitad de la pasada, el historial de las
+      // tiendas ya procesadas no se pierde (el cron lo completa al día
+      // siguiente, nunca se inventa lo que falte). Si varias tiendas del lote
+      // son del mismo nicho, se repite la foto con los datos ya más frescos —
+      // barato comparado con el escaneo de tiendas, y siempre correcto.
+      if (tienda) await registrarSnapshotNicho(tienda.niche);
     }
-  }
-
-  // Foto del día para cada nicho tocado en esta pasada: así se va acumulando
-  // el historial real del que sale la tendencia subiendo/bajando.
-  for (const nicho of nichosTocados) {
-    await registrarSnapshotNicho(nicho);
   }
 
   const tendencias = incluirTendencias ? await ingerirTendencias(geo) : null;
