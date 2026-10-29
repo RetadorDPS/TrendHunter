@@ -644,6 +644,25 @@ model SavedRealProduct {
   @@index([userId])
 }
 
+/// Foto diaria de un producto real agrupado (nicho + título normalizado):
+/// cuántas tiendas reales lo vendían ese día y a qué precio mínimo. Se
+/// escribe una vez por nicho cada vez que una tienda de ese nicho se vuelve
+/// a leer. Con varios días acumulados se puede comparar hoy contra hace una
+/// semana y decir honestamente si un producto está subiendo o bajando — sin
+/// esto, "tendencia" seria una palabra vacía.
+model SnapshotProductoReal {
+  id               String   @id @default(cuid())
+  clave            String
+  nicho            String
+  dia              String
+  vendedoresReales Int
+  precioMin        Float
+  createdAt        DateTime @default(now())
+
+  @@unique([clave, dia])
+  @@index([nicho, dia])
+}
+
 model TrackedStore {
   id                  String   @id @default(cuid())
   userId              String

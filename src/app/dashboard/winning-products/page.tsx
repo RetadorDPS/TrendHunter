@@ -51,7 +51,7 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
     <>
       <PageHeading
         title="Winning Products"
-        description="Productos reales agrupados por nicho y ordenados por cuántas tiendas reales distintas los venden: esa es la señal de qué tan probado está un producto, no un score inventado. Precio y disponibilidad son los que cada tienda publica ahora mismo."
+        description="Productos reales agrupados por nicho y ordenados por cuántas tiendas reales distintas los venden: esa es la señal de qué tan probado está un producto, no un score inventado. Cuando ya hay al menos 3 días de historial real, se añade si está subiendo o bajando de tiendas. Precio y disponibilidad son los que cada tienda publica ahora mismo."
       />
 
       {nichos.length === 0 ? (
@@ -159,6 +159,16 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
                             Nuevo
                           </Badge>
                         )}
+                        {producto.tendencia?.direccion === "subiendo" && (
+                          <Badge variant="success" className="text-[10px]">
+                            📈 Subiendo
+                          </Badge>
+                        )}
+                        {producto.tendencia?.direccion === "bajando" && (
+                          <Badge variant="outline" className="text-[10px]">
+                            📉 Bajando
+                          </Badge>
+                        )}
                       </div>
                       {sesion?.user?.id && (
                         <GuardarProductoReal
@@ -188,6 +198,12 @@ export default async function WinningProductsPage({ searchParams }: PageProps) {
                       <p className="text-[10px] text-muted-foreground/70">
                         Visto {formatRelativeTime(producto.vistoUltimaVez)}
                       </p>
+                      {producto.tendencia && producto.tendencia.direccion !== "estable" && (
+                        <p className="text-[10px] text-muted-foreground/70">
+                          {producto.tendencia.vendedoresAntes} → {producto.tendencia.vendedoresAhora} tiendas desde{" "}
+                          {producto.tendencia.desde}
+                        </p>
+                      )}
                     </div>
                   </a>
                 ))}

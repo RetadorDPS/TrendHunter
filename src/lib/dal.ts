@@ -10,6 +10,7 @@ import type {
   ProductDTO,
   ProductFilters,
   ProductoGanadorRealDTO,
+  TendenciaRealDTO,
   ProductoGuardadoRealDTO,
   ProductoRealDTO,
   StoreChangeDTO,
@@ -486,7 +487,79 @@ export interface ProductosRealesPaginados {
  * más grande ahora mismo), agrupada en memoria — nada de comparar producto a
  * producto, por eso es rápido incluso a esta escala.
  */
-export async function agruparProductosReales(nicho?: string): Promise<ProductoGanadorRealDTO[]> {
+/** Día natural de hoy, como clave de snapshot ("2026-10-29"). */
+function diaDeHoy(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Guarda la foto de hoy de un nicho (cuántas tiendas reales vende cada
+ * producto, a qué precio mínimo). Se llama cada vez que se reingesta alguna
+ * tienda de ese nicho; sobrescribe la fila de hoy si ya existía (varias
+ * pasadas el mismo día no duplican, solo refrescan).
+ */
+export async function registrarSnapshotNicho(nicho: string): Promise<void> {
+  const grupos = await agruparProductosRealesSinTendencia(nicho);
+  if (grupos.length === 0) return;
+  const dia = diaDeHoy();
+
+  await prisma.snapshotProductoReal.deleteMany({ where: { nicho, dia } });
+  await prisma.snapshotProductoReal.createMany({
+    data: grupos.map((grupo) => ({
+      clave: grupo.id,
+      nicho,
+      dia,
+      vendedoresReales: grupo.vendedoresReales,
+      precioMin: grupo.precioMin,
+    })),
+  });
+}
+
+/**
+ * Tendencia real de cada producto de un nicho: compara el snapshot de hoy
+ * con el más antiguo que tenga al menos 3 días de diferencia. Si no hay
+ * snapshots tan viejos todavía (el nicho es nuevo, o el cron lleva poco
+ * corriendo), no se devuelve nada para ese producto — nunca se inventa una
+ * tendencia sin historial real detrás.
+ */
+async function obtenerTendenciasNicho(nicho: string): Promise<Map<string, TendenciaRealDTO>> {
+  const snapshots = await prisma.snapshotProductoReal.findMany({
+    where: { nicho },
+    orderBy: { dia: "asc" },
+    select: { clave: true, dia: true, vendedoresReales: true },
+  });
+
+  const porClave = new Map<string, typeof snapshots>();
+  for (const fila of snapshots) {
+    const lista = porClave.get(fila.clave) ?? [];
+    lista.push(fila);
+    porClave.set(fila.clave, lista);
+  }
+
+  const resultado = new Map<string, TendenciaRealDTO>();
+  const hoyMs = Date.parse(diaDeHoy());
+  const TRES_DIAS_MS = 3 * 86_400_000;
+
+  for (const [clave, lista] of porClave) {
+    const ultimo = lista[lista.length - 1];
+    if (!ultimo || hoyMs - Date.parse(ultimo.dia) > TRES_DIAS_MS) continue; // snapshot de hoy obsoleto, no hay dato fresco
+    const base = lista.find((fila) => hoyMs - Date.parse(fila.dia) >= TRES_DIAS_MS);
+    if (!base) continue; // todavía no hay 3 días de historia real
+
+    const diferencia = ultimo.vendedoresReales - base.vendedoresReales;
+    resultado.set(clave, {
+      direccion: diferencia > 0 ? "subiendo" : diferencia < 0 ? "bajando" : "estable",
+      vendedoresAntes: base.vendedoresReales,
+      vendedoresAhora: ultimo.vendedoresReales,
+      desde: base.dia,
+    });
+  }
+
+  return resultado;
+}
+
+/** Igual que `agruparProductosReales`, pero sin tendencia (la usa `registrarSnapshotNicho` para no recursionar). */
+async function agruparProductosRealesSinTendencia(nicho?: string): Promise<Omit<ProductoGanadorRealDTO, "tendencia">[]> {
   const desde14Dias = new Date(Date.now() - 14 * 86_400_000);
   const where = {
     available: true,
@@ -558,7 +631,7 @@ export async function agruparProductosReales(nicho?: string): Promise<ProductoGa
     }
   }
 
-  const resultado: ProductoGanadorRealDTO[] = [...grupos.entries()].map(([clave, grupo]) => {
+  const resultado: Omit<ProductoGanadorRealDTO, "tendencia">[] = [...grupos.entries()].map(([clave, grupo]) => {
     const precios = [...grupo.vendedores.values()].map((v) => v.precio);
     return {
       id: clave,
@@ -577,6 +650,26 @@ export async function agruparProductosReales(nicho?: string): Promise<ProductoGa
 
   resultado.sort((a, b) => b.vendedoresReales - a.vendedoresReales || (a.vistoUltimaVez < b.vistoUltimaVez ? 1 : -1));
   return resultado;
+}
+
+/**
+ * Productos reales agrupados por nicho (ver `agruparProductosRealesSinTendencia`),
+ * con la tendencia real adjunta a cada uno — `null` cuando todavía no hay
+ * suficiente historial de snapshots para calcularla honestamente.
+ */
+export async function agruparProductosReales(nicho?: string): Promise<ProductoGanadorRealDTO[]> {
+  const grupos = await agruparProductosRealesSinTendencia(nicho);
+  if (grupos.length === 0) return [];
+
+  const nichos = [...new Set(grupos.map((grupo) => grupo.nicho))];
+  const tendenciasPorNicho = new Map(
+    await Promise.all(nichos.map(async (n) => [n, await obtenerTendenciasNicho(n)] as const)),
+  );
+
+  return grupos.map((grupo) => ({
+    ...grupo,
+    tendencia: tendenciasPorNicho.get(grupo.nicho)?.get(grupo.id) ?? null,
+  }));
 }
 
 /**

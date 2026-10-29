@@ -406,6 +406,20 @@ export const TABLES = [
     indexes: [["userId"]],
   },
   {
+    name: "SnapshotProductoReal",
+    columns: [
+      { name: "id", type: "text", pk: true },
+      { name: "clave", type: "text" },
+      { name: "nicho", type: "text" },
+      { name: "dia", type: "text" },
+      { name: "vendedoresReales", type: "int" },
+      { name: "precioMin", type: "float" },
+      { name: "createdAt", type: "datetime", default: now },
+    ],
+    uniques: [["clave", "dia"]],
+    indexes: [["nicho", "dia"]],
+  },
+  {
     name: "TrackedStore",
     columns: [
       { name: "id", type: "text", pk: true },

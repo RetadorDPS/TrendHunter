@@ -19,6 +19,7 @@ import {
   type ProcedenciaMetrica,
 } from "@/lib/confianzaProducto";
 import { revisarConfianza, type ResumenConfianza } from "@/lib/mantenimientoConfianza";
+import { registrarSnapshotNicho } from "@/lib/dal";
 
 /**
  * ============================================================================
@@ -698,13 +699,28 @@ export async function ingerirTodo(
             where: { origen: "ingesta" },
             select: { domain: true },
             orderBy: { lastScannedAt: "asc" },
-            take: Math.min(Math.max(opciones.maxTiendas ?? 8, 1), 20),
+            take: Math.min(Math.max(opciones.maxTiendas ?? 15, 1), 25),
           })
         ).map((tienda) => tienda.domain);
 
   const tiendas: ResultadoIngestaTienda[] = [];
+  const nichosTocados = new Set<string>();
   for (const dominio of dominios) {
-    tiendas.push(await ingerirTienda(dominio, { paginas: opciones.paginas }));
+    const resultado = await ingerirTienda(dominio, { paginas: opciones.paginas });
+    tiendas.push(resultado);
+    if (resultado.ok && resultado.tiendaId) {
+      const tienda = await prisma.store.findUnique({
+        where: { id: resultado.tiendaId },
+        select: { niche: true },
+      });
+      if (tienda) nichosTocados.add(tienda.niche);
+    }
+  }
+
+  // Foto del día para cada nicho tocado en esta pasada: así se va acumulando
+  // el historial real del que sale la tendencia subiendo/bajando.
+  for (const nicho of nichosTocados) {
+    await registrarSnapshotNicho(nicho);
   }
 
   const tendencias = incluirTendencias ? await ingerirTendencias(geo) : null;

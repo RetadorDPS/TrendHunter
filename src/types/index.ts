@@ -262,6 +262,19 @@ export interface ProductoGanadorRealDTO {
   nicho: string;
   vistoUltimaVez: string;
   nuevo: boolean;
+  /**
+   * Tendencia real: compara el snapshot más viejo con al menos 3 días de
+   * diferencia contra el de hoy. `null` cuando todavía no hay suficiente
+   * historial acumulado — nunca se inventa una dirección sin datos.
+   */
+  tendencia: TendenciaRealDTO | null;
+}
+
+export interface TendenciaRealDTO {
+  direccion: "subiendo" | "bajando" | "estable";
+  vendedoresAntes: number;
+  vendedoresAhora: number;
+  desde: string;
 }
 
 /**

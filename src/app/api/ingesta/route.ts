@@ -15,7 +15,7 @@ import { logger } from "@/lib/logger";
  *     "geo": "ES",                   // país de Google Trends
  *     "tendencias": true,            // leer también las tendencias del día
  *     "paginas": 3,                  // páginas del catálogo por tienda (1–4)
- *     "maxTiendas": 8,               // si no se pasan dominios
+ *     "maxTiendas": 15,              // si no se pasan dominios (máx. 25)
  *     "nicho": "Mascotas",           // solo con un único dominio: fuerza el nicho
  *     "pais": "US"                   // solo con un único dominio: país de la tienda
  *   }
@@ -23,6 +23,7 @@ import { logger } from "@/lib/logger";
  * Respuesta: qué se ha leído, qué ha cambiado y qué ha fallado (con motivo).
  * Recomendado: cada 6 horas (GitHub Actions u `curl` desde cron-job.org).
  */
+export const maxDuration = 60;
 export async function POST(request: Request) {
   const autorizacion = await autorizarTarea(request);
   if (!autorizacion.autorizado) return autorizacion.respuesta!;
